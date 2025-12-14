@@ -55,6 +55,8 @@ string boxLine(const string& content) {
     string s = content;
     if ((int)s.length() > inner) s = s.substr(0, inner);
     int pad = inner - (int)s.length();
+    // Ensure pad - 1 is non-negative
+    if (pad < 1) pad = 1;
     return "| " + s + string(pad - 1, ' ') + "|\n";
 }
 string boxCenter(const string& content) {
@@ -63,6 +65,9 @@ string boxCenter(const string& content) {
     if ((int)s.length() > inner) s = s.substr(0, inner);
     int left = (inner - (int)s.length()) / 2;
     int right = inner - (int)s.length() - left;
+    // Ensure left and right - 1 are non-negative
+    if (left < 0) left = 0;
+    if (right < 1) right = 1;
     return "| " + string(left, ' ') + s + string(right - 1, ' ') + "|\n";
 }
 
