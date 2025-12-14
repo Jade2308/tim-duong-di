@@ -105,6 +105,7 @@ string buildMapDisplay(RoadMap& map) {
     for (auto e : map.getEdges()) {
         if (!e.isReverse) {  // Chỉ hiển thị edge gốc
             double time = e.avgSpeed > 0 ? e.length / e.avgSpeed : 1e9;
+            // TG = Thời gian (Time), D = Độ dài (Length)
             string line = e.id + ": " + e.src + "->" + e.dst;
             line += " | TG=" + to_string((int)time) + " | D=" + to_string((int)e.length);
             out += boxLine(line);

@@ -10,10 +10,12 @@ using namespace std;
 // Named constants for traffic optimization calculations
 namespace {
     const double NEW_ROAD_COST_MULTIPLIER = 1.75;  // New roads cost ~1.75x average
-    const double DEFAULT_NEW_ROAD_COST = 70000.0;   // Default: 700 billion VND
+    const double DEFAULT_NEW_ROAD_COST = 70000.0;   // Default: 70,000 (units in tỷ VNĐ * 1000)
     const double INDIRECT_FLOW_REDIRECT_RATIO = 0.5; // 50% of indirect flow can redirect
     const double DIRECT_FLOW_REDIRECT_RATIO = 0.3;   // 30% of direct flow can redirect
     const double ESTIMATED_TIME_SAVINGS_MINUTES = 10.0; // Estimated travel time reduction
+    const double BYPASS_FLOW_REDIRECT_RATIO = 0.4;   // 40% of flow can redirect through bypass
+    const int DEFAULT_GREEN_LIGHT_TIME = 60;         // Default traffic light green time in seconds
 }
 
 TrafficOptimization::TrafficOptimization(RoadMap& map)
@@ -148,8 +150,8 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const Edge& c
                 estimatedCost = avgBudgetPerEdge * NEW_ROAD_COST_MULTIPLIER;
             }
             
-            // Ước tính lưu lượng có thể chuyển hướng (30-50% lưu lượng hiện tại)
-            double potentialRedirectedFlow = congestedEdge.flow * 0.4;
+            // Ước tính lưu lượng có thể chuyển hướng
+            double potentialRedirectedFlow = congestedEdge.flow * BYPASS_FLOW_REDIRECT_RATIO;
             
             if (estimatedCost <= budget && potentialRedirectedFlow > 0) {
                 NewRoadProposal proposal;
@@ -264,7 +266,7 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
     cout << "  - Giảm thiểu nguy cơ tắc nghẽn dây chuyền\n";
 }
 
-double TrafficOptimization::estimateMinimumBudget(const Edge& /* congestedEdge */) {
+double TrafficOptimization::estimateMinimumBudget(const Edge& congestedEdge) {
     // Tính ngân sách trung bình của các edge hiện có
     double avgBudget = 0;
     int count = 0;
@@ -279,7 +281,10 @@ double TrafficOptimization::estimateMinimumBudget(const Edge& /* congestedEdge *
     
     if (count > 0) {
         avgBudget = avgBudget / count;
-        return avgBudget * NEW_ROAD_COST_MULTIPLIER;
+        // Estimate based on the congested edge's characteristics
+        // Longer/higher capacity roads need more budget
+        double lengthFactor = congestedEdge.length > 0 ? congestedEdge.length / 3.0 : 1.0;
+        return avgBudget * NEW_ROAD_COST_MULTIPLIER * lengthFactor;
     }
     
     return DEFAULT_NEW_ROAD_COST;
@@ -292,10 +297,9 @@ void TrafficOptimization::displayTrafficSignalSolution(const Edge& congestedEdge
     // Tính toán thời gian đề xuất dựa trên mức độ quá tải
     if (congestedEdge.capacity > 0) {
         double congestionRatio = congestedEdge.flow / congestedEdge.capacity;
-        int currentGreenTime = 60; // giả sử thời gian xanh hiện tại là 60 giây
-        int recommendedGreenTime = (int)(currentGreenTime * congestionRatio * 1.2);
+        int recommendedGreenTime = (int)(DEFAULT_GREEN_LIGHT_TIME * congestionRatio * 1.2);
         
-        cout << "   - Thời gian đèn xanh đề xuất: " << recommendedGreenTime << " giây (hiện tại: " << currentGreenTime << " giây)\n";
+        cout << "   - Thời gian đèn xanh đề xuất: " << recommendedGreenTime << " giây (hiện tại: " << DEFAULT_GREEN_LIGHT_TIME << " giây)\n";
     }
     
     cout << "\n2. Điều tiết luồng giao thông:\n";
