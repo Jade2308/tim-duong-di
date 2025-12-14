@@ -7,6 +7,15 @@
 #include <unordered_map>
 using namespace std;
 
+// Named constants for traffic optimization calculations
+namespace {
+    const double NEW_ROAD_COST_MULTIPLIER = 1.75;  // New roads cost ~1.75x average
+    const double DEFAULT_NEW_ROAD_COST = 70000.0;   // Default: 700 billion VND
+    const double INDIRECT_FLOW_REDIRECT_RATIO = 0.5; // 50% of indirect flow can redirect
+    const double DIRECT_FLOW_REDIRECT_RATIO = 0.3;   // 30% of direct flow can redirect
+    const double ESTIMATED_TIME_SAVINGS_MINUTES = 10.0; // Estimated travel time reduction
+}
+
 TrafficOptimization::TrafficOptimization(RoadMap& map)
     : map_(map) {}
 
@@ -49,8 +58,13 @@ void TrafficOptimization::optimizeTraffic() {
     cout << "Lưu lượng thiết kế tối đa của nút " << congestedNode << ": " 
          << totalIncomingCapacity << " xe/giờ\n";
     
-    double congestionPercent = (totalIncomingFlow / totalIncomingCapacity) * 100;
-    cout << "Mức độ quá tải: " << round(congestionPercent) << "%\n";
+    // Guard against division by zero
+    if (totalIncomingCapacity > 0) {
+        double congestionPercent = (totalIncomingFlow / totalIncomingCapacity) * 100;
+        cout << "Mức độ quá tải: " << round(congestionPercent) << "%\n";
+    } else {
+        cout << "Mức độ quá tải: Không xác định (sức chứa = 0)\n";
+    }
 
     // Tìm các phương án xây dựng tuyến đường mới
     auto proposals = findPotentialNewRoads(congestedNode, budget);
@@ -134,7 +148,7 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string&
             }
             
             // Tính chi phí ước tính dựa trên khoảng cách và loại đường
-            double estimatedCost = 0;
+            double estimatedCost = DEFAULT_NEW_ROAD_COST;
             double avgBudgetPerEdge = 0;
             int edgeCount = 0;
             
@@ -147,10 +161,7 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string&
             
             if (edgeCount > 0) {
                 avgBudgetPerEdge = avgBudgetPerEdge / edgeCount;
-                // Chi phí tuyến mới khoảng 1.5-2 lần chi phí trung bình
-                estimatedCost = avgBudgetPerEdge * 1.75; 
-            } else {
-                estimatedCost = 70000; // Giá trị mặc định: 700 tỷ
+                estimatedCost = avgBudgetPerEdge * NEW_ROAD_COST_MULTIPLIER;
             }
             
             // Ước tính lưu lượng có thể chuyển hướng
@@ -160,7 +171,7 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string&
             for (const string& upstreamNode2 : secondLevelUpstream) {
                 for (const auto& e : edges) {
                     if (e.src == upstreamNode2 && e.dst == srcNode) {
-                        potentialRedirectedFlow += e.flow * 0.5; // 50% lưu lượng có thể chuyển
+                        potentialRedirectedFlow += e.flow * INDIRECT_FLOW_REDIRECT_RATIO;
                     }
                 }
             }
@@ -168,7 +179,7 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string&
             // Thêm lưu lượng trực tiếp từ srcNode đến congestedNode
             for (const auto& e : edges) {
                 if (e.src == srcNode && e.dst == congestedNode) {
-                    potentialRedirectedFlow += e.flow * 0.3; // 30% lưu lượng trực tiếp
+                    potentialRedirectedFlow += e.flow * DIRECT_FLOW_REDIRECT_RATIO;
                 }
             }
             
@@ -178,7 +189,7 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string&
                 proposal.dstNode = dstNode;
                 proposal.estimatedCost = estimatedCost;
                 proposal.trafficReduction = potentialRedirectedFlow;
-                proposal.travelTimeSaved = 10.0; // Ước tính giảm 10 phút
+                proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES;
                 
                 proposal.reasoning = "Tuyến đường này sẽ tạo một lối đi thay thế, cho phép phương tiện từ khu vực " 
                                    + srcNode + " và các khu vực lân cận đi thẳng đến " + dstNode 
@@ -226,12 +237,14 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
     
     cout << "\n=== PHÂN TÍCH HIỆU QUẢ ===\n";
     
-    double reductionPercent = (proposal.trafficReduction / currentFlow) * 100;
-    double newFlow = currentFlow - proposal.trafficReduction;
-    
-    cout << "• Giảm lưu lượng: Lưu lượng xe qua nút " << congestedNode 
-         << " dự kiến giảm " << round(reductionPercent) << "% vào giờ cao điểm.\n";
-    cout << "  (Từ " << round(currentFlow) << " xe/giờ xuống còn " << round(newFlow) << " xe/giờ)\n";
+    if (currentFlow > 0) {
+        double reductionPercent = (proposal.trafficReduction / currentFlow) * 100;
+        double newFlow = currentFlow - proposal.trafficReduction;
+        
+        cout << "• Giảm lưu lượng: Lưu lượng xe qua nút " << congestedNode 
+             << " dự kiến giảm " << round(reductionPercent) << "% vào giờ cao điểm.\n";
+        cout << "  (Từ " << round(currentFlow) << " xe/giờ xuống còn " << round(newFlow) << " xe/giờ)\n";
+    }
     
     cout << "• Giảm thời gian di chuyển: Thời gian trung bình qua nút " << congestedNode 
          << " giảm từ 15 phút xuống còn 5 phút.\n";
