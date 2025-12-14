@@ -11,13 +11,21 @@ Khi `system("pause")` được gọi, người dùng nhấn Enter để tiếp t
 **English:** When `system("pause")` is called, the user presses Enter to continue. This Enter key remains in the input buffer. When `showMenu()` is called immediately after, `_getch()` reads the buffered Enter key and immediately returns index 0, causing the menu to automatically select the first item.
 
 ## Giải pháp (Solution)
-Sau mỗi lần gọi `system("pause")`, thêm đoạn code để xóa bộ đệm đầu vào:
+Tạo một hàm helper `clearInputBuffer()` để xóa bộ đệm đầu vào và gọi nó sau mỗi lần gọi `system("pause")`:
 
 ```cpp
-// Xóa bộ đệm đầu vào sau system("pause") để tránh _getch() nhận phím Enter dư thừa
-while (_kbhit()) {
-    _getch();
+// Clear input buffer to prevent stray keypresses from interfering with menu navigation
+void clearInputBuffer() {
+    while (_kbhit()) {
+        _getch();
+    }
 }
+```
+
+Sau đó gọi hàm này sau mỗi `system("pause")`:
+```cpp
+system("pause");
+clearInputBuffer();
 ```
 
 Giải pháp này:
@@ -31,15 +39,16 @@ Giải pháp này:
 3. The `while` loop continues until the buffer is completely empty
 
 ## Các thay đổi (Changes Made)
-Đã thêm đoạn code xóa bộ đệm sau tất cả các vị trí gọi `system("pause")`:
+Đã tạo hàm helper `clearInputBuffer()` (dòng 37-42) và gọi nó sau tất cả các vị trí gọi `system("pause")`:
 
-1. **Dòng 191-194**: Sau khi tải bản đồ ban đầu
-2. **Dòng 239-243**: Sau khi hiển thị kết quả tìm đường ngắn nhất
-3. **Dòng 268-272**: Sau khi hiển thị kết quả đường thay thế
-4. **Dòng 279-283**: Sau khi hiển thị kết quả tối ưu hóa giao thông
-5. **Dòng 299-303**: Sau khi tải bản đồ mới
+1. **Dòng 37-42**: Định nghĩa hàm `clearInputBuffer()`
+2. **Dòng 197**: Sau khi tải bản đồ ban đầu
+3. **Dòng 242**: Sau khi hiển thị kết quả tìm đường ngắn nhất
+4. **Dòng 268**: Sau khi hiển thị kết quả đường thay thế
+5. **Dòng 276**: Sau khi hiển thị kết quả tối ưu hóa giao thông
+6. **Dòng 293**: Sau khi tải bản đồ mới
 
-**English:** Buffer clearing code has been added after all `system("pause")` calls at the locations listed above.
+**English:** Created helper function `clearInputBuffer()` (lines 37-42) and called it after all `system("pause")` calls at the locations listed above.
 
 ## Cách kiểm tra (How to Test)
 

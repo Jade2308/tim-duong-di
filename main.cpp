@@ -34,6 +34,13 @@ void enableConsole() {
     }
 }
 
+// Clear input buffer to prevent stray keypresses from interfering with menu navigation
+void clearInputBuffer() {
+    while (_kbhit()) {
+        _getch();
+    }
+}
+
 // Simple fixed-width box printing using ASCII chars
 const int BOX_WIDTH = 64;
 
@@ -187,11 +194,7 @@ int main() {
     
     cout << "\n";
     system("pause");
-    
-    // Xóa bộ đệm đầu vào sau system("pause") để tránh _getch() nhận phím Enter dư thừa
-    while (_kbhit()) {
-        _getch();
-    }
+    clearInputBuffer();
 
     vector<string> menu = {
         "1. Tìm đường đi ngắn nhất (Shortest Path)",
@@ -236,10 +239,7 @@ int main() {
                 }
             }
             system("pause");
-            // Xóa bộ đệm đầu vào
-            while (_kbhit()) {
-                _getch();
-            }
+            clearInputBuffer();
         }
         else if (choice == 1) {
             // 2. Gợi ý tuyến đường thay thế
@@ -265,10 +265,7 @@ int main() {
                 alt.suggestAlternative(edgeId, s, g);
             }
             system("pause");
-            // Xóa bộ đệm đầu vào
-            while (_kbhit()) {
-                _getch();
-            }
+            clearInputBuffer();
         }
         else if (choice == 2) {
             // 3. Tối ưu hóa giao thông
@@ -276,10 +273,7 @@ int main() {
             TrafficOptimization opt(map);
             opt.optimizeTraffic();
             system("pause");
-            // Xóa bộ đệm đầu vào
-            while (_kbhit()) {
-                _getch();
-            }
+            clearInputBuffer();
         }
         else if (choice == 3) {
             // 4. Tải thêm bản đồ
@@ -296,10 +290,7 @@ int main() {
                 cout << RED << "❌ Lỗi: Tải file " << f << " thất bại. Kiểm tra tên file và định dạng.\n" << RESET;
             }
             system("pause");
-            // Xóa bộ đệm đầu vào
-            while (_kbhit()) {
-                _getch();
-            }
+            clearInputBuffer();
         }
         else if (choice == 4) {
             // 5. Thoát
