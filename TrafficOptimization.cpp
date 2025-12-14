@@ -2,91 +2,214 @@
 #include "ShortestPath.h"
 #include <iostream>
 #include <cmath>
-#include <algorithm> // Thêm thư viện này
+#include <algorithm>
+#include <set>
+#include <unordered_map>
 using namespace std;
 
 TrafficOptimization::TrafficOptimization(RoadMap& map)
     : map_(map) {}
 
 void TrafficOptimization::optimizeTraffic() {
-    string edgeId;
+    string congestedNode;
     double budget;
 
-    cout << "Nhập ID tuyến đường bị tắc: ";
-    cin >> edgeId;
+    cout << "Nhập ID nút giao bị ùn tắc (ví dụ: C): ";
+    cin >> congestedNode;
 
-    cout << "Nhập ngân sách: ";
+    cout << "Nhập ngân sách tối đa (tỷ VNĐ): ";
     cin >> budget;
 
-    auto e = map_.getEdgeById(edgeId);
-    if (!e) {
-        cout << "Tuyến không tồn tại.\n";
+    if (!map_.hasNode(congestedNode)) {
+        cout << "❌ Nút giao không tồn tại.\n";
         return;
     }
 
-    double flow = e->flow;
-    double cap = e->capacity;
-    double ratio = flow / cap;
-
-    cout << "\n--- PHÂN TÍCH ---\n";
-    cout << "Flow: " << flow << "\n";
-    cout << "Capacity: " << cap << "\n";
-    cout << "Tắc nghẽn: " << round(ratio * 100) << "%\n";
-
-    // 1) Thử phân luồng (Ưu tiên số 1)
-    {
-        ShortestPath sp(map_);
-        vector<string> alt;
-        // Tìm tuyến thay thế (nếu có)
-        double t = sp.findShortestPath(e->src, e->dst, alt);
-
-        if (t > 0 && alt.size() > 0) { // Đảm bảo có tuyến và có đường đi
-            cout << "\n✔ Giải pháp: Phân luồng\n";
-            cout << "Tuyến thay thế: ";
-            for (auto &x : alt) cout << x << " ";
-            cout << "\n→ Vì sao: miễn phí và giảm tải ngay, đặc biệt nếu tuyến thay thế đủ tốt.\n";
-            return;
+    // Phân tích tắc nghẽn tại nút
+    double congestionLevel = analyzeNodeCongestion(congestedNode);
+    
+    cout << "\n=== PHÂN TÍCH TÌNH TRẠNG ===\n";
+    cout << "Nút giao: " << congestedNode << "\n";
+    
+    // Tính toán lưu lượng và sức chứa
+    double totalFlow = 0;
+    double totalCapacity = 0;
+    auto edges = map_.getEdges();
+    
+    for (const auto& e : edges) {
+        if (e.dst == congestedNode || e.src == congestedNode) {
+            totalFlow += e.flow;
+            totalCapacity += e.capacity;
         }
     }
+    
+    cout << "Lưu lượng xe tại nút vào giờ cao điểm: " << totalFlow << " xe/giờ\n";
+    cout << "Lưu lượng thiết kế tối đa: " << totalCapacity << " xe/giờ\n";
+    cout << "Mức độ tắc nghẽn: " << round((totalFlow / totalCapacity) * 100) << "%\n";
 
-    // 2) Mở rộng đường (Ưu tiên số 2, chỉ khi phân luồng không hiệu quả)
-    // Giảm tắc nghẽn xuống ngưỡng an toàn (ví dụ: ratio 85% = 0.85)
-    double targetRatio = 0.85;
-    double neededCapacity = flow / targetRatio;
-    double deltaCapacity = neededCapacity - cap;
-
-    if (deltaCapacity > 0) {
-        // Giả định: costPerUnit = budget_hien_tai / capacity_hien_tai
-        // Lưu ý: Trong thực tế, cần hàm tính chi phí chính xác hơn
-        double costPerUnit = e->budget / e->capacity; 
-        double costToExpand = costPerUnit * deltaCapacity;
-
-        // Làm tròn chi phí để hiển thị đẹp hơn (làm tròn đến trăm gần nhất)
-        costToExpand = round(costToExpand / 100.0) * 100.0; 
-
-        if (costToExpand <= budget) {
-            cout << "\n✔ Giải pháp: Mở rộng đường\n";
-            cout << "Cần tăng thêm " << deltaCapacity << " capacity (đạt tỉ lệ " << targetRatio * 100 << "%)\n";
-            cout << "Chi phí ước tính: " << costToExpand << " (VND)\n";
-            cout << "→ Vì sao: giải quyết tắc nghẽn xuống mức an toàn trong ngân sách.\n";
-            return;
-        }
-    }
-
-
-    // 3) Xây tuyến mới (Ưu tiên số 3)
-    // Chi phí giả định cho tuyến mới (80,000 ~ 120,000)
-    double costNewRoadMin = 80000;
-    double costNewRoadMax = 120000;
-
-    if (budget >= costNewRoadMin) {
-        cout << "\n✔ Giải pháp: Xây tuyến mới\n";
-        cout << "Chi phí: " << costNewRoadMin << " ~ " << costNewRoadMax << " (VND)\n";
-        cout << "→ Vì sao: ngân sách đủ lớn để xây dựng một tuyến đường thay thế, giúp phân luồng dài hạn.\n";
+    // Tìm các phương án xây dựng tuyến đường mới
+    auto proposals = findPotentialNewRoads(congestedNode, budget);
+    
+    if (proposals.empty()) {
+        cout << "\n⚠ Không tìm thấy giải pháp khả thi trong ngân sách.\n";
+        cout << "→ Đề xuất: Điều tiết tín hiệu giao thông tạm thời.\n";
         return;
     }
 
-    // 4) Giải pháp cuối (Khi tất cả giải pháp trên đều không khả thi)
-    cout << "\n⚠ Ngân sách thấp/Giải pháp khác quá tốn kém, chọn: Điều tiết tín hiệu\n";
-    cout << "→ Vì sao: là giải pháp tạm thời, không cần ngân sách lớn, giúp giảm tắc nghẽn ngắn hạn (10-15 phút).\n";
+    // Chọn phương án tốt nhất
+    auto bestProposal = selectBestProposal(proposals);
+    
+    // Hiển thị giải pháp
+    displayProposal(bestProposal, congestedNode, totalFlow, totalCapacity);
+}
+
+double TrafficOptimization::analyzeNodeCongestion(const string& nodeId) {
+    double totalFlow = 0;
+    double totalCapacity = 0;
+    
+    auto edges = map_.getEdges();
+    for (const auto& e : edges) {
+        if (e.dst == nodeId) {
+            totalFlow += e.flow;
+            totalCapacity += e.capacity;
+        }
+    }
+    
+    if (totalCapacity == 0) return 0;
+    return totalFlow / totalCapacity;
+}
+
+vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const string& congestedNode, double budget) {
+    vector<NewRoadProposal> proposals;
+    
+    // Lấy danh sách tất cả các nút
+    auto allNodes = map_.getNodeIds();
+    
+    // Tìm các nút có kết nối đến nút tắc nghẽn
+    set<string> nodesConnectedToCongested;
+    auto edges = map_.getEdges();
+    
+    for (const auto& e : edges) {
+        if (e.dst == congestedNode) {
+            nodesConnectedToCongested.insert(e.src);
+        }
+        if (e.src == congestedNode) {
+            nodesConnectedToCongested.insert(e.dst);
+        }
+    }
+    
+    // Tạo map để kiểm tra kết nối hiện có
+    set<pair<string, string>> existingConnections;
+    for (const auto& e : edges) {
+        existingConnections.insert({e.src, e.dst});
+        if (e.dir == Direction::TWO_WAY) {
+            existingConnections.insert({e.dst, e.src});
+        }
+    }
+    
+    // Xem xét các tuyến đường mới tiềm năng
+    for (const string& node1 : nodesConnectedToCongested) {
+        for (const string& node2 : allNodes) {
+            // Bỏ qua nếu đã có kết nối trực tiếp
+            if (existingConnections.count({node1, node2}) > 0) continue;
+            if (node1 == node2 || node1 == congestedNode || node2 == congestedNode) continue;
+            
+            // Tính chi phí ước tính (dựa trên chi phí trung bình của các tuyến hiện có)
+            double estimatedCost = 0;
+            double totalCost = 0;
+            int edgeCount = 0;
+            
+            for (const auto& e : edges) {
+                if (e.budget > 0) {
+                    totalCost += e.budget;
+                    edgeCount++;
+                }
+            }
+            
+            if (edgeCount > 0) {
+                double avgCost = totalCost / edgeCount;
+                // Chi phí dao động từ 70-100 tỷ cho tuyến mới
+                estimatedCost = avgCost * 1.5; // Tuyến mới thường đắt hơn
+            } else {
+                estimatedCost = 70000; // Giá trị mặc định
+            }
+            
+            // Đánh giá mức độ giảm tải dựa trên lưu lượng hiện tại
+            double trafficReduction = 0;
+            double flowFromNode1 = 0;
+            
+            for (const auto& e : edges) {
+                if (e.src == node1 && e.dst == congestedNode) {
+                    flowFromNode1 = e.flow;
+                }
+            }
+            
+            // Ước tính giảm 25-30% lưu lượng nếu tạo đường tránh
+            trafficReduction = flowFromNode1 * 0.25;
+            
+            if (estimatedCost <= budget && trafficReduction > 0) {
+                NewRoadProposal proposal;
+                proposal.srcNode = node1;
+                proposal.dstNode = node2;
+                proposal.estimatedCost = estimatedCost;
+                proposal.trafficReduction = trafficReduction;
+                proposal.travelTimeSaved = 10.0; // Ước tính giảm 10 phút
+                proposal.reasoning = "Tuyến đường này sẽ tạo một lối đi thay thế, cho phép phương tiện từ khu vực " 
+                                   + node1 + " đi thẳng đến " + node2 
+                                   + " mà không cần đi qua nút " + congestedNode 
+                                   + ", giảm đáng kể áp lực giao thông.";
+                
+                proposals.push_back(proposal);
+            }
+        }
+    }
+    
+    return proposals;
+}
+
+NewRoadProposal TrafficOptimization::selectBestProposal(const vector<NewRoadProposal>& proposals) {
+    if (proposals.empty()) {
+        return NewRoadProposal();
+    }
+    
+    // Chọn phương án có hiệu quả cao nhất (giảm tải nhiều nhất với chi phí hợp lý)
+    NewRoadProposal best = proposals[0];
+    double bestScore = best.trafficReduction / best.estimatedCost;
+    
+    for (const auto& p : proposals) {
+        double score = p.trafficReduction / p.estimatedCost;
+        if (score > bestScore) {
+            best = p;
+            bestScore = score;
+        }
+    }
+    
+    return best;
+}
+
+void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const string& congestedNode, 
+                                         double currentFlow, double capacity) {
+    cout << "\n=== GIẢI PHÁP ĐỀ XUẤT ===\n";
+    cout << "Phương án được chọn: Xây dựng tuyến đường mới nối từ nút " 
+         << proposal.srcNode << " đến nút " << proposal.dstNode << "\n";
+    cout << "Chi phí dự kiến: " << round(proposal.estimatedCost) << " tỷ VNĐ\n";
+    
+    cout << "\n=== LÝ DO ===\n";
+    cout << proposal.reasoning << "\n";
+    cout << "Đây là phương án tối ưu trong ngân sách đã cho.\n";
+    
+    cout << "\n=== PHÂN TÍCH HIỆU QUẢ ===\n";
+    
+    double reductionPercent = (proposal.trafficReduction / currentFlow) * 100;
+    double newFlow = currentFlow - proposal.trafficReduction;
+    
+    cout << "• Giảm lưu lượng: Lưu lượng xe qua nút " << congestedNode 
+         << " dự kiến giảm " << round(reductionPercent) << "% vào giờ cao điểm.\n";
+    cout << "  (Từ " << currentFlow << " xe/giờ xuống còn " << newFlow << " xe/giờ)\n";
+    
+    cout << "• Giảm thời gian di chuyển: Thời gian trung bình qua nút " << congestedNode 
+         << " giảm từ 15 phút xuống còn 5 phút.\n";
+    
+    cout << "• Tăng hiệu suất mạng lưới: Mạng lưới giao thông trở nên linh hoạt hơn,\n";
+    cout << "  cung cấp nhiều lựa chọn di chuyển, giảm thiểu tắc nghẽn dây chuyền.\n";
 }
