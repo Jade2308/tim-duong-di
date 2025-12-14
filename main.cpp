@@ -93,34 +93,23 @@ string buildMapDisplay(RoadMap& map) {
     out += boxLine(GREEN "Tổng Edges (Đoạn Đường): " + to_string(totalEdges) + RESET);
     out += "|" + string(BOX_WIDTH - 2, '-') + "|\n";
     
-    // Hiển thị một số node và edge để làm ví dụ
-    out += boxLine("CÁC NODE TIÊU BIỂU:");
-    int nodeCount = 0;
+    // Hiển thị TẤT CẢ các node
+    out += boxLine("TẤT CẢ CÁC NODE:");
     for (auto id : map.getNodeIds()) {
-        if (nodeCount < 4) {
-             out += boxLine(" - " + id);
-             nodeCount++;
-        } else {
-             break;
-        }
+        out += boxLine(" - " + id);
     }
-    if (totalNodes > 4) out += boxLine("... và " + to_string(totalNodes - 4) + " Nodes khác.");
     out += "|" + string(BOX_WIDTH - 2, '-') + "|\n";
 
-    out += boxLine("CÁC EDGE TIÊU BIỂU:");
-    int edgeCount = 0;
+    // Hiển thị TẤT CẢ các edge (chỉ hiển thị edge gốc, không hiển thị reverse)
+    out += boxLine("TẤT CẢ CÁC EDGE:");
     for (auto e : map.getEdges()) {
-        if (edgeCount < 4) {
+        if (!e.isReverse) {  // Chỉ hiển thị edge gốc
             double time = e.avgSpeed > 0 ? e.length / e.avgSpeed : 1e9;
             string line = e.id + ": " + e.src + "->" + e.dst;
-            line += " | TG=" + to_string((int)time) + " (đv time) | Dài=" + to_string((int)e.length);
+            line += " | TG=" + to_string((int)time) + " | D=" + to_string((int)e.length);
             out += boxLine(line);
-            edgeCount++;
-        } else {
-            break;
         }
     }
-    if (totalEdges > 4) out += boxLine("... và " + to_string(totalEdges - 4) + " Edges khác.");
 
     out += boxBottom();
     return out;
