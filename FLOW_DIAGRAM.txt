@@ -1,0 +1,164 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    MAIN.CPP EXECUTION FLOW - BEFORE FIX                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  ┌─────────────────────┐
+  │  Program Starts     │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ User enters:        │
+  │ "map.txt"           │
+  │ [Press Enter]       │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ Map loaded          │
+  │ ✓ 10 nodes          │
+  │ ✓ 18 edges          │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ system("pause")     │
+  │ User presses Enter  │ ◄── [Enter] stays in buffer!
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ showMenu() called   │
+  │ _getch() reads...   │ ◄── Reads buffered [Enter]
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ ❌ AUTO-SELECT      │
+  │ Option 1 chosen     │
+  │ without user input  │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ Program asks for    │
+  │ start/goal nodes    │
+  │ (User confused!)    │
+  └─────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     MAIN.CPP EXECUTION FLOW - AFTER FIX                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  ┌─────────────────────┐
+  │  Program Starts     │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ User enters:        │
+  │ "map.txt"           │
+  │ [Press Enter]       │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ Map loaded          │
+  │ ✓ 10 nodes          │
+  │ ✓ 18 edges          │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ system("pause")     │
+  │ User presses Enter  │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ clearInputBuffer()  │ ◄── ✅ NEW! Clears [Enter] from buffer
+  │ while(_kbhit())     │
+  │   _getch();         │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ showMenu() called   │
+  │ _getch() waits...   │ ◄── Waits for NEW keypress
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ ✅ MENU DISPLAYED   │
+  │ 1. Shortest Path    │ ◄── User can navigate!
+  │ 2. Alternative      │
+  │ 3. Optimization     │
+  │ 4. Load Map         │
+  │ 5. Exit             │
+  └──────────┬──────────┘
+             │
+             ▼
+  ┌─────────────────────┐
+  │ User navigates with │
+  │ ↑ UP / DOWN ↓       │
+  │ and presses Enter   │
+  │ on chosen option    │
+  └─────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        THE FIX - clearInputBuffer()                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Function Definition (Lines 37-42):
+  ┌──────────────────────────────────────────────────────┐
+  │ void clearInputBuffer() {                            │
+  │     while (_kbhit()) {  // Check if key in buffer   │
+  │         _getch();       // Read and discard it      │
+  │     }                                                │
+  │ }                                                    │
+  └──────────────────────────────────────────────────────┘
+
+  Called After Each system("pause"):
+  ┌──────────────────────────────────────────────────────┐
+  │ system("pause");                                     │
+  │ clearInputBuffer();  // ← Clear any buffered keys   │
+  └──────────────────────────────────────────────────────┘
+
+  Locations:
+  • Line 197: After initial map load
+  • Line 242: After shortest path result
+  • Line 268: After alternative route result  
+  • Line 276: After traffic optimization result
+  • Line 293: After loading new map
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              TESTING CHECKLIST                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Test 1: Initial Map Load
+  ✓ Run program
+  ✓ Enter "map.txt"
+  ✓ Press Enter at pause
+  ✓ Verify menu shows with navigation enabled
+
+  Test 2: Menu Return After Each Operation
+  ✓ Select option 1 (Shortest Path)
+  ✓ Press Enter at pause
+  ✓ Verify menu navigation works
+  
+  ✓ Select option 2 (Alternative Route)
+  ✓ Press Enter at pause
+  ✓ Verify menu navigation works
+  
+  ✓ Select option 3 (Traffic Optimization)
+  ✓ Press Enter at pause
+  ✓ Verify menu navigation works
+  
+  ✓ Select option 4 (Load Map)
+  ✓ Press Enter at pause
+  ✓ Verify menu navigation works
+
+  Test 3: Exit
+  ✓ Select option 5 (Exit)
+  ✓ Program closes cleanly
+
