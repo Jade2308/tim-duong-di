@@ -33,9 +33,6 @@ void TrafficOptimization::optimizeTraffic() {
         cout << "❌ Nút giao không tồn tại.\n";
         return;
     }
-
-    // Phân tích tắc nghẽn tại nút
-    double congestionLevel = analyzeNodeCongestion(congestedNode);
     
     cout << "\n=== PHÂN TÍCH TÌNH TRẠNG ===\n";
     cout << "Vị trí ùn tắc: Nút giao " << congestedNode << "\n";
@@ -225,7 +222,7 @@ NewRoadProposal TrafficOptimization::selectBestProposal(const vector<NewRoadProp
 }
 
 void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const string& congestedNode, 
-                                         double currentFlow, double capacity) {
+                                         double currentFlow, double /* capacity */) {
     cout << "\n=== GIẢI PHÁP ĐỀ XUẤT ===\n";
     cout << "Phương án được chọn: Xây dựng tuyến đường mới nối từ nút " 
          << proposal.srcNode << " đến nút " << proposal.dstNode << "\n";
