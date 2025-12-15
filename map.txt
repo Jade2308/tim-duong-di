@@ -12,9 +12,9 @@ J SouthHub      12.000 107.530
 
 18
 E01 MainAve         2.5 50 1500 1200 40000 A B 2 1
-E02 RiversideRd     3.0 45 1200 900  35000 B E 2 1
-E03 SkyBridge       1.2 60 2000 1500 80000 E F 1 4
-E04 HillPass        2.8 40 1000 600  30000 F G 2 2
+E02 RiversideRd     3.0 45 1200 1500  35000 B E 2 1
+E03 SkyBridge       1.2 60 2000 2300 80000 E F 1 4
+E04 HillPass        2.8 40 1000 1300  30000 F G 2 2
 E05 ForestTunnel    3.6 55 1800 1700 90000 G C 1 5
 E06 WestConnector   1.7 45 1100 850  25000 C A 2 2
 E07 CentralLoop1    2.0 35 900  700  20000 A D 2 2
