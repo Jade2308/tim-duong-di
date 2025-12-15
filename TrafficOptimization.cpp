@@ -1,6 +1,7 @@
 #include "TrafficOptimization.h"
 #include "ShortestPath.h"
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include <algorithm>
 #include <set>
@@ -555,7 +556,11 @@ void TrafficOptimization::displayCongestedRoadsList(const std::vector<Congestion
     cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
     cout << "║           DANH SÁCH CÁC TUYẾN ĐƯỜNG BỊ ÙN TẮC              ║\n";
     cout << "╠════════════════════════════════════════════════════════════════╣\n";
-    cout << "║  Tìm thấy " << congestedRoads.size() << " tuyến đường đang bị quá tải                         ║\n";
+    cout << "║  Tìm thấy " << congestedRoads.size() << " tuyến đường đang bị quá tải";
+    // Tính toán padding động
+    int numDigits = to_string(congestedRoads.size()).length();
+    int padding = 64 - 28 - numDigits;  // 64 total - fixed text - number length
+    cout << string(padding > 0 ? padding : 1, ' ') << "║\n";
     cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
     
     int count = 1;
@@ -564,20 +569,26 @@ void TrafficOptimization::displayCongestedRoadsList(const std::vector<Congestion
         cout << "│ " << count++ << ". " << info.edgeId << " - " << info.edgeName << "\n";
         cout << "├────────────────────────────────────────────────────────────────┤\n";
         cout << "│ Chiều:          " << info.srcNode << " → " << info.dstNode << "\n";
-        cout << "│ Lưu lượng:      " << (int)info.flow << " xe/giờ\n";
-        cout << "│ Sức chứa:       " << (int)info.capacity << " xe/giờ\n";
-        cout << "│ Tỷ lệ:          " << (int)(info.congestionRatio * 100) << "%\n";
+        
+        // Sử dụng fixed và setprecision thay vì cast sang int
+        cout << fixed << setprecision(0);
+        cout << "│ Lưu lượng:      " << info.flow << " xe/giờ\n";
+        cout << "│ Sức chứa:       " << info.capacity << " xe/giờ\n";
+        cout << "│ Tỷ lệ:          " << (info.congestionRatio * 100) << "%\n";
         
         // Hiển thị mức độ nghiêm trọng
         if (info.overloadPercent > 100) {
-            cout << "│ Mức độ:         🔴 CỰC KỲ NGHIÊM TRỌNG (quá tải +" << (int)info.overloadPercent << "%)\n";
+            cout << "│ Mức độ:         🔴 CỰC KỲ NGHIÊM TRỌNG (quá tải +" << info.overloadPercent << "%)\n";
         } else if (info.overloadPercent > 50) {
-            cout << "│ Mức độ:         🟠 NGHIÊM TRỌNG (quá tải +" << (int)info.overloadPercent << "%)\n";
+            cout << "│ Mức độ:         🟠 NGHIÊM TRỌNG (quá tải +" << info.overloadPercent << "%)\n";
         } else if (info.overloadPercent > 20) {
-            cout << "│ Mức độ:         🟡 TRUNG BÌNH (quá tải +" << (int)info.overloadPercent << "%)\n";
+            cout << "│ Mức độ:         🟡 TRUNG BÌNH (quá tải +" << info.overloadPercent << "%)\n";
         } else {
-            cout << "│ Mức độ:         🟢 NHẸ (quá tải +" << (int)info.overloadPercent << "%)\n";
+            cout << "│ Mức độ:         🟢 NHẸ (quá tải +" << info.overloadPercent << "%)\n";
         }
+        
+        // Reset về default precision
+        cout << defaultfloat;
         
         cout << "└────────────────────────────────────────────────────────────────┘\n";
         cout << "\n";
