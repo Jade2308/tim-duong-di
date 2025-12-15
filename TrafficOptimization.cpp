@@ -204,7 +204,10 @@ vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const Edge& c
     // Requirement 2: If budget is 1/3 to <1x road cost, recommend expanding lanes
     else if (budget >= roadCost / 3.0 && budget < roadCost) {
         auto expandProposal = createExpandLanesProposal(congestedEdge);
-        expandProposal.estimatedCost = budget;  // Use available budget
+        // Keep the estimated cost from helper, but ensure it's within budget
+        if (expandProposal.estimatedCost > budget) {
+            expandProposal.estimatedCost = budget;
+        }
         proposals.push_back(expandProposal);
     }
     
@@ -424,7 +427,7 @@ NewRoadProposal TrafficOptimization::createExpandLanesProposal(const Edge& conge
     proposal.trafficReduction = std::min(capacityIncrease, congestedEdge.flow - congestedEdge.capacity);
     proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.5;
     
-    double budgetRatio = congestedEdge.budget > 0 ? (proposal.estimatedCost / congestedEdge.budget) : 0;
+    double budgetRatio = congestedEdge.budget > 0 ? (proposal.estimatedCost / congestedEdge.budget) : 0.5;
     proposal.reasoning = "Ngân sách (" + std::to_string((int)proposal.estimatedCost) 
                        + " tỷ) từ 1/3 đến nhỏ hơn chi phí đường (" 
                        + std::to_string((int)congestedEdge.budget) + " tỷ, tỷ lệ: " 
