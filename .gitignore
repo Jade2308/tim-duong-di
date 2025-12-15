@@ -1,3 +1,6 @@
 *.o
 *.exe
 *.dll
+traffic_gui
+*.out
+*.a

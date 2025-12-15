@@ -1,15 +1,25 @@
 // main.cpp - Giao diện tiếng Việt và thiết kế cân đối
 #include <iostream>
-#include <windows.h>
-#include <conio.h>
 #include <string>
 #include <vector>
 #include <limits> // Dùng cho cin.ignore
+#include <clocale>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <conio.h>
+#else
+#include <cstdlib>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 
 #include "RoadMap.h"
 #include "ShortestPath.h"
 #include "AlternativeRoute.h"
 #include "TrafficOptimization.h"
+#include "GUI.h"
 
 using namespace std;
 
@@ -23,6 +33,7 @@ using namespace std;
 
 // Initialize console for UTF-8 and ANSI (safe)
 void enableConsole() {
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
@@ -32,12 +43,73 @@ void enableConsole() {
         dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         SetConsoleMode(hOut, dwMode);
     }
+#else
+    // On Linux, UTF-8 is usually default, no special setup needed
+    setlocale(LC_ALL, "");
+#endif
+}
+
+// Cross-platform getch implementation
+int getch_cross() {
+#ifdef _WIN32
+    return _getch();
+#else
+    struct termios oldattr, newattr;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldattr);
+    newattr = oldattr;
+    newattr.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
+    return ch;
+#endif
+}
+
+// Cross-platform kbhit implementation
+int kbhit_cross() {
+#ifdef _WIN32
+    return _kbhit();
+#else
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+    
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+    
+    ch = getchar();
+    
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+    
+    if(ch != EOF) {
+        ungetc(ch, stdin);
+        return 1;
+    }
+    
+    return 0;
+#endif
+}
+
+// Cross-platform pause function
+void pause_cross() {
+#ifdef _WIN32
+    system("pause");
+#else
+    cout << "Nhấn Enter để tiếp tục...";
+    cin.get();
+#endif
 }
 
 // Clear input buffer to prevent stray keypresses from interfering with menu navigation
 void clearInputBuffer() {
-    while (_kbhit()) {
-        _getch();
+    while (kbhit_cross()) {
+        getch_cross();
     }
 }
 
@@ -120,7 +192,11 @@ string buildMapDisplay(RoadMap& map) {
 int showMenu(const vector<string>& items) {
     int index = 0;
     while (true) {
+#ifdef _WIN32
         system("cls");
+#else
+        system("clear");
+#endif
         
         // TIÊU ĐỀ
         cout << boxTop();
@@ -152,12 +228,12 @@ int showMenu(const vector<string>& items) {
         }
         cout << "\n";
 
-        int k = _getch();
-        if (k == 224) {
-            k = _getch();
-            if (k == 72) index = (index - 1 + items.size()) % items.size(); // up
-            else if (k == 80) index = (index + 1) % items.size(); // down
-        } else if (k == 13) {
+        int k = getch_cross();
+        if (k == 224 || k == 27) { // 224 for Windows, 27 (ESC) for Linux arrow keys
+            k = getch_cross();
+            if (k == 72 || k == 65) index = (index - 1 + items.size()) % items.size(); // up (72=Win, 65=Linux)
+            else if (k == 80 || k == 66) index = (index + 1) % items.size(); // down (80=Win, 66=Linux)
+        } else if (k == 13 || k == 10) { // Enter (13=Win, 10=Linux)
             return index;
         }
     }
@@ -170,6 +246,57 @@ int main() {
     enableConsole();
 
     RoadMap map;
+
+    // Hiển thị menu chọn chế độ
+    cout << boxTop();
+    cout << boxCenter(GREEN "🚗 HỆ THỐNG PHÂN TÍCH BẢN ĐỒ GIAO THÔNG" RESET);
+    cout << boxBottom();
+    cout << "\n";
+    cout << "Chọn chế độ hoạt động:\n";
+    cout << "1. Chế độ Console (Text-based)\n";
+    cout << "2. Chế độ GUI (Đồ họa)\n";
+    cout << "Lựa chọn của bạn (1 hoặc 2): ";
+    
+    int modeChoice;
+    cin >> modeChoice;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    
+    if (modeChoice == 2) {
+        // Chế độ GUI
+        cout << GREEN << "\n🎨 Đang khởi động chế độ GUI...\n" << RESET;
+        cout << "Nhập tên file bản đồ (mặc định: map.txt): ";
+        string file;
+        getline(cin, file);
+        
+        if (file.empty()) {
+            file = "map.txt";
+        }
+        
+        if (!map.loadFromFile(file)) {
+            cout << RED << "❌ Lỗi: Không thể tải file: " << file << RESET << "\n";
+            cout << "Nhấn Enter để thoát...";
+            cin.get();
+            return 1;
+        }
+        
+        cout << GREEN << "✅ Tải thành công " << map.getNodeIds().size() << " Nodes và " << map.getEdges().size() << " Edges." << RESET << "\n";
+        
+        GUI gui(map);
+        if (!gui.init()) {
+            cout << RED << "❌ Lỗi: Không thể khởi tạo GUI!" << RESET << "\n";
+            cout << "Nhấn Enter để thoát...";
+            cin.get();
+            return 1;
+        }
+        
+        cout << GREEN << "✅ GUI đã khởi động thành công!\n" << RESET;
+        gui.run();
+        
+        return 0;
+    }
+    
+    // Chế độ Console (code gốc)
+    cout << GREEN << "\n📝 Đang khởi động chế độ Console...\n" << RESET;
 
     // Yêu cầu tên file ban đầu
     cout << GREEN << "Nhập tên file bản đồ ban đầu (hoặc để trống để bỏ qua): " << RESET;
@@ -188,7 +315,7 @@ int main() {
     }
     
     cout << "\n";
-    system("pause");
+    pause_cross();
     clearInputBuffer();
 
     vector<string> menu = {
@@ -202,7 +329,7 @@ int main() {
     while (true) {
         int choice = showMenu(menu);
 
-        system("cls");
+        system("clear");
         cout << currentMapText << "\n\n";
 
         if (choice == 0) {
@@ -233,7 +360,7 @@ int main() {
                     cout << "\n   " << CYAN << "Tổng thời gian di chuyển: " << t << " đơn vị thời gian." << RESET << "\n";
                 }
             }
-            system("pause");
+            pause_cross();
             clearInputBuffer();
         }
         else if (choice == 1) {
@@ -259,7 +386,7 @@ int main() {
                 AlternativeRoute alt(map);
                 alt.suggestAlternative(edgeId, s, g);
             }
-            system("pause");
+            pause_cross();
             clearInputBuffer();
         }
         else if (choice == 2) {
@@ -267,7 +394,7 @@ int main() {
             cout << CYAN << "📈 Đang chạy Phân tích Tối ưu hóa Giao thông...\n" << RESET;
             TrafficOptimization opt(map);
             opt.optimizeTraffic();
-            system("pause");
+            pause_cross();
             clearInputBuffer();
         }
         else if (choice == 3) {
@@ -284,7 +411,7 @@ int main() {
             } else {
                 cout << RED << "❌ Lỗi: Tải file " << f << " thất bại. Kiểm tra tên file và định dạng.\n" << RESET;
             }
-            system("pause");
+            pause_cross();
             clearInputBuffer();
         }
         else if (choice == 4) {
