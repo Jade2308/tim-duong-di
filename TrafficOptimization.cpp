@@ -22,11 +22,30 @@ TrafficOptimization::TrafficOptimization(RoadMap& map)
     : map_(map) {}
 
 void TrafficOptimization::optimizeTraffic() {
+    // Tự động phát hiện các tuyến đường bị ùn tắc
+    cout << "\n🔍 Đang quét hệ thống để phát hiện các tuyến đường ùn tắc...\n";
+    auto congestedRoads = detectCongestedRoads();
+    
+    if (congestedRoads.empty()) {
+        cout << "\n✅ KHÔNG CÓ TUYẾN ĐƯỜNG NÀO BỊ QUÁ TẢI!\n";
+        cout << "Tất cả các tuyến đường đang hoạt động bình thường (lưu lượng ≤ sức chứa).\n";
+        return;
+    }
+    
+    // Hiển thị danh sách các tuyến đường bị ùn tắc
+    displayCongestedRoadsList(congestedRoads);
+    
+    // Người dùng chọn tuyến đường để phân tích
     string congestedEdgeId;
     double budget;
-
-    cout << "Nhập ID tuyến đường bị ùn tắc (ví dụ: E01): ";
+    
+    cout << "\n📌 Nhập ID tuyến đường muốn phân tích (hoặc nhập 0 để hủy): ";
     cin >> congestedEdgeId;
+    
+    if (congestedEdgeId == "0") {
+        cout << "Đã hủy phân tích.\n";
+        return;
+    }
 
     cout << "Nhập ngân sách tối đa (tỷ VNĐ): ";
     cin >> budget;
@@ -495,4 +514,72 @@ NewRoadProposal TrafficOptimization::createDirectBypassProposal(const std::vecto
                        + " đến " + lastNode + " để giảm tải toàn bộ chuỗi đường tắc.";
     
     return proposal;
+}
+
+std::vector<CongestionInfo> TrafficOptimization::detectCongestedRoads() {
+    std::vector<CongestionInfo> congestedRoads;
+    auto edges = map_.getEdges();
+    
+    for (const auto& edge : edges) {
+        // Chỉ kiểm tra các edge gốc (không phải edge ngược)
+        if (edge.isReverse) {
+            continue;
+        }
+        
+        // Kiểm tra nếu lưu lượng vượt quá sức chứa
+        if (edge.capacity > 0 && edge.flow > edge.capacity) {
+            CongestionInfo info;
+            info.edgeId = edge.id;
+            info.edgeName = edge.name;
+            info.srcNode = edge.src;
+            info.dstNode = edge.dst;
+            info.flow = edge.flow;
+            info.capacity = edge.capacity;
+            info.congestionRatio = edge.flow / edge.capacity;
+            info.overloadPercent = ((edge.flow - edge.capacity) / edge.capacity) * 100.0;
+            
+            congestedRoads.push_back(info);
+        }
+    }
+    
+    // Sắp xếp theo mức độ quá tải giảm dần
+    std::sort(congestedRoads.begin(), congestedRoads.end(), 
+              [](const CongestionInfo& a, const CongestionInfo& b) {
+                  return a.overloadPercent > b.overloadPercent;
+              });
+    
+    return congestedRoads;
+}
+
+void TrafficOptimization::displayCongestedRoadsList(const std::vector<CongestionInfo>& congestedRoads) {
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║           DANH SÁCH CÁC TUYẾN ĐƯỜNG BỊ ÙN TẮC              ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    cout << "║  Tìm thấy " << congestedRoads.size() << " tuyến đường đang bị quá tải                         ║\n";
+    cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
+    
+    int count = 1;
+    for (const auto& info : congestedRoads) {
+        cout << "┌────────────────────────────────────────────────────────────────┐\n";
+        cout << "│ " << count++ << ". " << info.edgeId << " - " << info.edgeName << "\n";
+        cout << "├────────────────────────────────────────────────────────────────┤\n";
+        cout << "│ Chiều:          " << info.srcNode << " → " << info.dstNode << "\n";
+        cout << "│ Lưu lượng:      " << (int)info.flow << " xe/giờ\n";
+        cout << "│ Sức chứa:       " << (int)info.capacity << " xe/giờ\n";
+        cout << "│ Tỷ lệ:          " << (int)(info.congestionRatio * 100) << "%\n";
+        
+        // Hiển thị mức độ nghiêm trọng
+        if (info.overloadPercent > 100) {
+            cout << "│ Mức độ:         🔴 CỰC KỲ NGHIÊM TRỌNG (quá tải +" << (int)info.overloadPercent << "%)\n";
+        } else if (info.overloadPercent > 50) {
+            cout << "│ Mức độ:         🟠 NGHIÊM TRỌNG (quá tải +" << (int)info.overloadPercent << "%)\n";
+        } else if (info.overloadPercent > 20) {
+            cout << "│ Mức độ:         🟡 TRUNG BÌNH (quá tải +" << (int)info.overloadPercent << "%)\n";
+        } else {
+            cout << "│ Mức độ:         🟢 NHẸ (quá tải +" << (int)info.overloadPercent << "%)\n";
+        }
+        
+        cout << "└────────────────────────────────────────────────────────────────┘\n";
+        cout << "\n";
+    }
 }
