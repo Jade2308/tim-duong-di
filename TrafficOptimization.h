@@ -6,10 +6,12 @@
 struct NewRoadProposal {
     std::string srcNode;
     std::string dstNode;
+    std::string intermediateNode;  // For two-segment routes
     double estimatedCost;
     double trafficReduction;
     double travelTimeSaved;
     std::string reasoning;
+    bool isTwoSegment = false;
 };
 
 class TrafficOptimization {
@@ -22,7 +24,9 @@ private:
     
     // Helper methods
     double analyzeNodeCongestion(const std::string& nodeId);
-    std::vector<NewRoadProposal> findPotentialNewRoads(const std::string& congestedNode, double budget);
+    std::vector<NewRoadProposal> findPotentialNewRoads(const Edge& congestedEdge, double budget);
     NewRoadProposal selectBestProposal(const std::vector<NewRoadProposal>& proposals);
-    void displayProposal(const NewRoadProposal& proposal, const std::string& congestedNode, double currentFlow, double capacity);
+    void displayProposal(const NewRoadProposal& proposal, const Edge& congestedEdge);
+    double estimateMinimumBudget(const Edge& congestedEdge);
+    void displayTrafficSignalSolution(const Edge& congestedEdge);
 };
