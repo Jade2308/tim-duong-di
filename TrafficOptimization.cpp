@@ -50,6 +50,8 @@ void TrafficOptimization::optimizeTraffic() {
     cout << "Chiều: " << congestedEdge.src << " → " << congestedEdge.dst << "\n";
     cout << "Lưu lượng xe hiện tại: " << congestedEdge.flow << " xe/giờ\n";
     cout << "Sức chứa thiết kế: " << congestedEdge.capacity << " xe/giờ\n";
+    cout << "Chi phí đường hiện tại: " << congestedEdge.budget << " tỷ VNĐ\n";
+    cout << "Ngân sách dự kiến: " << budget << " tỷ VNĐ\n";
     
     // Tính mức độ quá tải
     if (congestedEdge.capacity > 0) {
@@ -108,89 +110,110 @@ double TrafficOptimization::analyzeNodeCongestion(const string& nodeId) {
 vector<NewRoadProposal> TrafficOptimization::findPotentialNewRoads(const Edge& congestedEdge, double budget) {
     vector<NewRoadProposal> proposals;
     
+    // Check if road is over capacity
+    if (!isOverCapacity(congestedEdge)) {
+        return proposals;
+    }
+    
+    double roadCost = congestedEdge.budget;
     string srcNode = congestedEdge.src;
     string dstNode = congestedEdge.dst;
     
-    // Lấy danh sách tất cả các nút
-    auto allNodes = map_.getNodeIds();
-    auto edges = map_.getEdges();
-    
-    // Tạo map để kiểm tra kết nối hiện có
-    set<pair<string, string>> existingConnections;
-    for (const auto& e : edges) {
-        existingConnections.insert({e.src, e.dst});
-        if (e.dir == Direction::TWO_WAY) {
-            existingConnections.insert({e.dst, e.src});
+    // Requirement 1: If budget >= road cost, recommend building new road
+    if (budget >= roadCost) {
+        // Find bypass routes through intermediate nodes
+        auto allNodes = map_.getNodeIds();
+        auto edges = map_.getEdges();
+        
+        set<pair<string, string>> existingConnections;
+        for (const auto& e : edges) {
+            existingConnections.insert({e.src, e.dst});
+            if (e.dir == Direction::TWO_WAY) {
+                existingConnections.insert({e.dst, e.src});
+            }
+        }
+        
+        for (const string& intermediateNode : allNodes) {
+            if (intermediateNode == srcNode || intermediateNode == dstNode) continue;
+            
+            bool canConnectFromSrc = existingConnections.count({srcNode, intermediateNode}) == 0;
+            bool canConnectToDst = existingConnections.count({intermediateNode, dstNode}) == 0;
+            
+            if (canConnectFromSrc || canConnectToDst) {
+                double estimatedCost = DEFAULT_NEW_ROAD_COST;
+                double avgBudgetPerEdge = 0;
+                int edgeCount = 0;
+                
+                for (const auto& e : edges) {
+                    if (e.budget > 0 && !e.isReverse) {
+                        avgBudgetPerEdge += e.budget;
+                        edgeCount++;
+                    }
+                }
+                
+                if (edgeCount > 0) {
+                    avgBudgetPerEdge = avgBudgetPerEdge / edgeCount;
+                    estimatedCost = avgBudgetPerEdge * NEW_ROAD_COST_MULTIPLIER;
+                }
+                
+                double potentialRedirectedFlow = congestedEdge.flow * BYPASS_FLOW_REDIRECT_RATIO;
+                
+                if (estimatedCost <= budget && potentialRedirectedFlow > 0) {
+                    NewRoadProposal proposal;
+                    proposal.type = ProposalType::NEW_ROAD;
+                    
+                    if (canConnectFromSrc && canConnectToDst) {
+                        proposal.srcNode = srcNode;
+                        proposal.dstNode = intermediateNode;
+                        proposal.estimatedCost = estimatedCost * 2;
+                        proposal.trafficReduction = potentialRedirectedFlow * 0.6;
+                        proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES;
+                        proposal.reasoning = "Ngân sách (" + to_string((int)budget) + " tỷ) >= chi phí đường (" 
+                                           + to_string((int)roadCost) + " tỷ). Xây dựng tuyến đường vòng qua nút " 
+                                           + intermediateNode + " để phân tán lưu lượng xe. Tạo 2 đoạn: " 
+                                           + srcNode + "→" + intermediateNode + " và " + intermediateNode + "→" + dstNode + ".";
+                        proposal.intermediateNode = intermediateNode;
+                        proposal.isTwoSegment = true;
+                    } else if (canConnectFromSrc) {
+                        proposal.srcNode = srcNode;
+                        proposal.dstNode = intermediateNode;
+                        proposal.estimatedCost = estimatedCost;
+                        proposal.trafficReduction = potentialRedirectedFlow * 0.3;
+                        proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.7;
+                        proposal.reasoning = "Ngân sách (" + to_string((int)budget) + " tỷ) >= chi phí đường (" 
+                                           + to_string((int)roadCost) + " tỷ). Xây dựng tuyến đường từ " + srcNode 
+                                           + " đến " + intermediateNode + " để tạo lối đi thay thế.";
+                    } else {
+                        proposal.srcNode = intermediateNode;
+                        proposal.dstNode = dstNode;
+                        proposal.estimatedCost = estimatedCost;
+                        proposal.trafficReduction = potentialRedirectedFlow * 0.3;
+                        proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.7;
+                        proposal.reasoning = "Ngân sách (" + to_string((int)budget) + " tỷ) >= chi phí đường (" 
+                                           + to_string((int)roadCost) + " tỷ). Xây dựng tuyến đường từ " 
+                                           + intermediateNode + " đến " + dstNode + " để tạo lối đi thay thế.";
+                    }
+                    
+                    if (proposal.estimatedCost <= budget) {
+                        proposals.push_back(proposal);
+                    }
+                }
+            }
         }
     }
+    // Requirement 2: If budget is 1/3 to <1x road cost, recommend expanding lanes
+    else if (budget >= roadCost / 3.0 && budget < roadCost) {
+        auto expandProposal = createExpandLanesProposal(congestedEdge);
+        expandProposal.estimatedCost = budget;  // Use available budget
+        proposals.push_back(expandProposal);
+    }
     
-    // Tìm các nút trung gian giữa src và dst để tạo đường tránh
-    // Chiến lược 1: Tìm đường tránh song song (bypass)
-    for (const string& intermediateNode : allNodes) {
-        if (intermediateNode == srcNode || intermediateNode == dstNode) continue;
-        
-        // Kiểm tra xem có thể tạo đường từ srcNode -> intermediateNode -> dstNode không
-        bool canConnectFromSrc = existingConnections.count({srcNode, intermediateNode}) == 0;
-        bool canConnectToDst = existingConnections.count({intermediateNode, dstNode}) == 0;
-        
-        if (canConnectFromSrc || canConnectToDst) {
-            double estimatedCost = DEFAULT_NEW_ROAD_COST;
-            double avgBudgetPerEdge = 0;
-            int edgeCount = 0;
-            
-            for (const auto& e : edges) {
-                if (e.budget > 0 && !e.isReverse) {
-                    avgBudgetPerEdge += e.budget;
-                    edgeCount++;
-                }
-            }
-            
-            if (edgeCount > 0) {
-                avgBudgetPerEdge = avgBudgetPerEdge / edgeCount;
-                estimatedCost = avgBudgetPerEdge * NEW_ROAD_COST_MULTIPLIER;
-            }
-            
-            // Ước tính lưu lượng có thể chuyển hướng
-            double potentialRedirectedFlow = congestedEdge.flow * BYPASS_FLOW_REDIRECT_RATIO;
-            
-            if (estimatedCost <= budget && potentialRedirectedFlow > 0) {
-                NewRoadProposal proposal;
-                
-                // Đề xuất tuyến đường mới có khả năng giảm tải cao nhất
-                if (canConnectFromSrc && canConnectToDst) {
-                    // Tạo 2 tuyến đường mới qua nút trung gian
-                    proposal.srcNode = srcNode;
-                    proposal.dstNode = intermediateNode;
-                    proposal.estimatedCost = estimatedCost * 2; // 2 đoạn đường
-                    proposal.trafficReduction = potentialRedirectedFlow * 0.6;
-                    proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES;
-                    proposal.reasoning = "Xây dựng tuyến đường vòng qua nút " + intermediateNode 
-                                       + " để phân tán lưu lượng xe. Tạo 2 đoạn: " + srcNode + "→" + intermediateNode 
-                                       + " và " + intermediateNode + "→" + dstNode + ".";
-                    proposal.intermediateNode = intermediateNode;
-                    proposal.isTwoSegment = true;
-                } else if (canConnectFromSrc) {
-                    proposal.srcNode = srcNode;
-                    proposal.dstNode = intermediateNode;
-                    proposal.estimatedCost = estimatedCost;
-                    proposal.trafficReduction = potentialRedirectedFlow * 0.3;
-                    proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.7;
-                    proposal.reasoning = "Xây dựng tuyến đường từ " + srcNode + " đến " + intermediateNode 
-                                       + " để tạo lối đi thay thế, giảm áp lực trên tuyến " + congestedEdge.id + ".";
-                } else {
-                    proposal.srcNode = intermediateNode;
-                    proposal.dstNode = dstNode;
-                    proposal.estimatedCost = estimatedCost;
-                    proposal.trafficReduction = potentialRedirectedFlow * 0.3;
-                    proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.7;
-                    proposal.reasoning = "Xây dựng tuyến đường từ " + intermediateNode + " đến " + dstNode 
-                                       + " để tạo lối đi thay thế, giảm áp lực trên tuyến " + congestedEdge.id + ".";
-                }
-                
-                if (proposal.estimatedCost <= budget) {
-                    proposals.push_back(proposal);
-                }
-            }
+    // Requirement 3: Check for adjacent congested roads
+    auto adjacentCongested = findAdjacentCongestedRoads(congestedEdge);
+    if (adjacentCongested.size() >= 2) {  // At least 2 roads in sequence (including current)
+        auto bypassProposal = createDirectBypassProposal(adjacentCongested, budget);
+        if (bypassProposal.estimatedCost > 0 && bypassProposal.estimatedCost <= budget) {
+            proposals.push_back(bypassProposal);
         }
     }
     
@@ -221,13 +244,30 @@ NewRoadProposal TrafficOptimization::selectBestProposal(const vector<NewRoadProp
 void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const Edge& congestedEdge) {
     cout << "\n=== GIẢI PHÁP ĐỀ XUẤT ===\n";
     
-    if (proposal.isTwoSegment) {
-        cout << "Phương án được chọn: Xây dựng tuyến đường vòng qua nút " << proposal.intermediateNode << "\n";
-        cout << "  - Đoạn 1: " << proposal.srcNode << " → " << proposal.intermediateNode << "\n";
-        cout << "  - Đoạn 2: " << proposal.intermediateNode << " → " << proposal.dstNode << "\n";
-    } else {
-        cout << "Phương án được chọn: Xây dựng tuyến đường mới\n";
+    // Display based on proposal type
+    if (proposal.type == ProposalType::EXPAND_LANES) {
+        cout << "Phương án được chọn: Mở rộng làn đường\n";
+        cout << "  - Tuyến đường: " << congestedEdge.id << " (" << proposal.srcNode << " → " << proposal.dstNode << ")\n";
+        cout << "  - Loại: Mở rộng sức chứa hiện tại\n";
+    } else if (proposal.type == ProposalType::DIRECT_BYPASS) {
+        cout << "Phương án được chọn: Xây dựng đường nối thẳng\n";
         cout << "  - Chiều: " << proposal.srcNode << " → " << proposal.dstNode << "\n";
+        cout << "  - Loại: Đường bypass cho chuỗi đường tắc liền kề\n";
+        cout << "  - Các đường tắc được bypass: ";
+        for (size_t i = 0; i < proposal.congestedPath.size(); ++i) {
+            cout << proposal.congestedPath[i];
+            if (i < proposal.congestedPath.size() - 1) cout << " → ";
+        }
+        cout << "\n";
+    } else {  // NEW_ROAD
+        if (proposal.isTwoSegment) {
+            cout << "Phương án được chọn: Xây dựng tuyến đường vòng qua nút " << proposal.intermediateNode << "\n";
+            cout << "  - Đoạn 1: " << proposal.srcNode << " → " << proposal.intermediateNode << "\n";
+            cout << "  - Đoạn 2: " << proposal.intermediateNode << " → " << proposal.dstNode << "\n";
+        } else {
+            cout << "Phương án được chọn: Xây dựng tuyến đường mới\n";
+            cout << "  - Chiều: " << proposal.srcNode << " → " << proposal.dstNode << "\n";
+        }
     }
     
     cout << "Chi phí dự kiến: " << round(proposal.estimatedCost) << " tỷ VNĐ\n";
@@ -248,16 +288,23 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
         cout << "  - Mức độ quá tải mới: " << round(newCongestionPercent) << "%\n";
     }
     
-    cout << "• Thông số tuyến đường mới đề xuất:\n";
-    cout << "  - Lưu lượng xe dự kiến: " << round(proposal.trafficReduction) << " xe/giờ\n";
-    cout << "  - Sức chứa thiết kế khuyến nghị: " << round(proposal.trafficReduction * 1.3) << " xe/giờ\n";
-    
-    if (proposal.isTwoSegment) {
-        cout << "  - Chiều đi: Hai chiều (TWO_WAY)\n";
-        cout << "  - Loại đường: Đường chính (MAIN_ROAD)\n";
+    if (proposal.type == ProposalType::EXPAND_LANES) {
+        cout << "• Thông số mở rộng đề xuất:\n";
+        cout << "  - Tăng sức chứa thêm: " << round(proposal.trafficReduction) << " xe/giờ (khoảng 40%)\n";
+        cout << "  - Sức chứa mới: " << round(congestedEdge.capacity + proposal.trafficReduction) << " xe/giờ\n";
+        cout << "  - Loại: Thêm làn đường hoặc mở rộng mặt đường hiện tại\n";
     } else {
-        cout << "  - Chiều đi: Một chiều (ONE_WAY)\n";
-        cout << "  - Loại đường: Đường chính (MAIN_ROAD)\n";
+        cout << "• Thông số tuyến đường mới đề xuất:\n";
+        cout << "  - Lưu lượng xe dự kiến: " << round(proposal.trafficReduction) << " xe/giờ\n";
+        cout << "  - Sức chứa thiết kế khuyến nghị: " << round(proposal.trafficReduction * 1.3) << " xe/giờ\n";
+        
+        if (proposal.isTwoSegment) {
+            cout << "  - Chiều đi: Hai chiều (TWO_WAY)\n";
+            cout << "  - Loại đường: Đường chính (MAIN_ROAD)\n";
+        } else {
+            cout << "  - Chiều đi: Một chiều (ONE_WAY)\n";
+            cout << "  - Loại đường: Đường chính (MAIN_ROAD)\n";
+        }
     }
     
     cout << "\n• Lợi ích bổ sung:\n";
@@ -320,4 +367,129 @@ void TrafficOptimization::displayTrafficSignalSolution(const Edge& congestedEdge
     
     cout << "\n⏱️  Thời gian triển khai: 2-4 tuần\n";
     cout << "💰 Chi phí ước tính: 5-10 tỷ VNĐ (chủ yếu cho thiết bị và công nghệ)\n";
+}
+
+bool TrafficOptimization::isOverCapacity(const Edge& edge) {
+    return edge.flow > edge.capacity;
+}
+
+std::vector<std::string> TrafficOptimization::findAdjacentCongestedRoads(const Edge& startEdge) {
+    std::vector<std::string> congestedPath;
+    congestedPath.push_back(startEdge.id);
+    
+    // Find forward congested roads (from dst of current edge)
+    std::string currentNode = startEdge.dst;
+    auto edges = map_.getEdges();
+    
+    bool foundCongested = true;
+    while (foundCongested) {
+        foundCongested = false;
+        for (const auto& e : edges) {
+            if (e.src == currentNode && !e.isReverse && isOverCapacity(e)) {
+                congestedPath.push_back(e.id);
+                currentNode = e.dst;
+                foundCongested = true;
+                break;
+            }
+        }
+    }
+    
+    // Find backward congested roads (from src of current edge)
+    currentNode = startEdge.src;
+    foundCongested = true;
+    while (foundCongested) {
+        foundCongested = false;
+        for (const auto& e : edges) {
+            if (e.dst == currentNode && !e.isReverse && isOverCapacity(e)) {
+                congestedPath.insert(congestedPath.begin(), e.id);
+                currentNode = e.src;
+                foundCongested = true;
+                break;
+            }
+        }
+    }
+    
+    return congestedPath;
+}
+
+NewRoadProposal TrafficOptimization::createExpandLanesProposal(const Edge& congestedEdge) {
+    NewRoadProposal proposal;
+    proposal.type = ProposalType::EXPAND_LANES;
+    proposal.srcNode = congestedEdge.src;
+    proposal.dstNode = congestedEdge.dst;
+    proposal.estimatedCost = congestedEdge.budget * 0.5;  // Expanding lanes costs ~50% of new road
+    
+    // Expanding lanes can increase capacity by 30-50%
+    double capacityIncrease = congestedEdge.capacity * 0.4;
+    proposal.trafficReduction = std::min(capacityIncrease, congestedEdge.flow - congestedEdge.capacity);
+    proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * 0.5;
+    
+    double budgetRatio = congestedEdge.budget > 0 ? (proposal.estimatedCost / congestedEdge.budget) : 0;
+    proposal.reasoning = "Ngân sách (" + std::to_string((int)proposal.estimatedCost) 
+                       + " tỷ) từ 1/3 đến nhỏ hơn chi phí đường (" 
+                       + std::to_string((int)congestedEdge.budget) + " tỷ, tỷ lệ: " 
+                       + std::to_string((int)(budgetRatio * 100)) 
+                       + "%). Đề xuất mở rộng làn đường " + congestedEdge.id 
+                       + " (" + congestedEdge.src + "→" + congestedEdge.dst 
+                       + ") để tăng sức chứa khoảng 40%.";
+    
+    return proposal;
+}
+
+NewRoadProposal TrafficOptimization::createDirectBypassProposal(const std::vector<std::string>& congestedPath, double budget) {
+    NewRoadProposal proposal;
+    proposal.type = ProposalType::DIRECT_BYPASS;
+    proposal.congestedPath = congestedPath;
+    
+    if (congestedPath.empty()) {
+        proposal.estimatedCost = 0;
+        return proposal;
+    }
+    
+    // Calculate total cost of congested roads
+    double totalCost = 0;
+    double totalFlow = 0;
+    auto edges = map_.getEdges();
+    
+    std::string firstNode, lastNode;
+    for (const auto& edgeId : congestedPath) {
+        for (const auto& e : edges) {
+            if (e.id == edgeId && !e.isReverse) {
+                totalCost += e.budget;
+                totalFlow += e.flow;
+                if (firstNode.empty()) {
+                    firstNode = e.src;
+                }
+                lastNode = e.dst;
+                break;
+            }
+        }
+    }
+    
+    // Check if budget > 2/3 of total cost
+    double thresholdCost = totalCost * 2.0 / 3.0;
+    if (budget <= thresholdCost) {
+        proposal.estimatedCost = 0;  // Signal that this proposal is not viable
+        return proposal;
+    }
+    
+    proposal.srcNode = firstNode;
+    proposal.dstNode = lastNode;
+    proposal.estimatedCost = totalCost * 0.8;  // Direct road costs ~80% of total
+    proposal.trafficReduction = totalFlow * 0.5;  // Can redirect 50% of total flow
+    proposal.travelTimeSaved = ESTIMATED_TIME_SAVINGS_MINUTES * congestedPath.size();
+    
+    std::string pathStr;
+    for (size_t i = 0; i < congestedPath.size(); ++i) {
+        pathStr += congestedPath[i];
+        if (i < congestedPath.size() - 1) pathStr += "→";
+    }
+    
+    proposal.reasoning = "Các đường liền kề (" + pathStr + ") đều bị tắc. "
+                       + "Ngân sách (" + std::to_string((int)budget) 
+                       + " tỷ) > 2/3 tổng chi phí (" + std::to_string((int)thresholdCost) 
+                       + " tỷ). Đề xuất xây đường nối thẳng từ " + firstNode 
+                       + " đến " + lastNode + " để giảm tải toàn bộ chuỗi đường tắc.";
+    
+    return proposal;
 }

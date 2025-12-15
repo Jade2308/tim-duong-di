@@ -3,6 +3,12 @@
 #include <string>
 #include <vector>
 
+enum class ProposalType {
+    NEW_ROAD,           // Build new road (budget >= road cost)
+    EXPAND_LANES,       // Expand lanes (budget 1/3 to <1x road cost)
+    DIRECT_BYPASS       // Direct bypass for adjacent congested roads
+};
+
 struct NewRoadProposal {
     std::string srcNode;
     std::string dstNode;
@@ -12,6 +18,8 @@ struct NewRoadProposal {
     double travelTimeSaved;
     std::string reasoning;
     bool isTwoSegment = false;
+    ProposalType type = ProposalType::NEW_ROAD;
+    std::vector<std::string> congestedPath;  // For direct bypass of adjacent roads
 };
 
 class TrafficOptimization {
@@ -29,4 +37,10 @@ private:
     void displayProposal(const NewRoadProposal& proposal, const Edge& congestedEdge);
     double estimateMinimumBudget(const Edge& congestedEdge);
     void displayTrafficSignalSolution(const Edge& congestedEdge);
+    
+    // New methods for updated recommendation system
+    bool isOverCapacity(const Edge& edge);
+    std::vector<std::string> findAdjacentCongestedRoads(const Edge& startEdge);
+    NewRoadProposal createExpandLanesProposal(const Edge& congestedEdge);
+    NewRoadProposal createDirectBypassProposal(const std::vector<std::string>& congestedPath, double budget);
 };
