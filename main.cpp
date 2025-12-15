@@ -99,7 +99,7 @@ int kbhit_cross() {
 // Cross-platform pause function
 void pause_cross() {
 #ifdef _WIN32
-    pause_cross();
+    system("pause");
 #else
     cout << "Nhấn Enter để tiếp tục...";
     cin.get();
@@ -193,7 +193,7 @@ int showMenu(const vector<string>& items) {
     int index = 0;
     while (true) {
 #ifdef _WIN32
-        system("clear");
+        system("cls");
 #else
         system("clear");
 #endif

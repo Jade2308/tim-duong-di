@@ -67,14 +67,37 @@ bool GUI::initSDL() {
         return false;
     }
     
-    // Load fonts
-    font_ = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16);
+    // Load fonts with cross-platform paths
+    const char* fontPaths[] = {
+#ifdef _WIN32
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\verdana.ttf",
+#else
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+#endif
+        nullptr
+    };
+    
+    // Try to load font from available paths
+    for (int i = 0; fontPaths[i] != nullptr; ++i) {
+        font_ = TTF_OpenFont(fontPaths[i], 16);
+        if (font_ != nullptr) break;
+    }
+    
     if (font_ == nullptr) {
         std::cerr << "Không thể load font! TTF_Error: " << TTF_GetError() << std::endl;
+        std::cerr << "Vui lòng cài đặt DejaVu Sans hoặc Arial font." << std::endl;
         return false;
     }
     
-    fontSmall_ = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12);
+    // Try to load small font from available paths
+    for (int i = 0; fontPaths[i] != nullptr; ++i) {
+        fontSmall_ = TTF_OpenFont(fontPaths[i], 12);
+        if (fontSmall_ != nullptr) break;
+    }
+    
     if (fontSmall_ == nullptr) {
         std::cerr << "Không thể load font nhỏ! TTF_Error: " << TTF_GetError() << std::endl;
         return false;
