@@ -22,6 +22,17 @@ struct NewRoadProposal {
     std::vector<std::string> congestedPath;  // For direct bypass of adjacent roads
 };
 
+struct CongestionInfo {
+    std::string edgeId;
+    std::string edgeName;
+    std::string srcNode;
+    std::string dstNode;
+    double flow;
+    double capacity;
+    double congestionRatio;  // flow/capacity
+    double overloadPercent;   // (flow-capacity)/capacity * 100
+};
+
 class TrafficOptimization {
 public:
     TrafficOptimization(RoadMap& map);
@@ -43,4 +54,8 @@ private:
     std::vector<std::string> findAdjacentCongestedRoads(const Edge& startEdge);
     NewRoadProposal createExpandLanesProposal(const Edge& congestedEdge);
     NewRoadProposal createDirectBypassProposal(const std::vector<std::string>& congestedPath, double budget);
+    
+    // Automatic congestion detection methods
+    std::vector<CongestionInfo> detectCongestedRoads();
+    void displayCongestedRoadsList(const std::vector<CongestionInfo>& congestedRoads);
 };
