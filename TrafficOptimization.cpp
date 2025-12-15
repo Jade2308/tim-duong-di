@@ -79,10 +79,10 @@ void TrafficOptimization::optimizeTraffic() {
     if (congestedEdge.capacity > 0) {
         double congestionPercent = (congestedEdge.flow / congestedEdge.capacity) * 100;
         cout << fixed << setprecision(0);
-        cout << "Mức độ quá tải: " << round(congestionPercent) << "%\n";
+        cout << "Mức độ quá tải: " << congestionPercent << "%\n";
         
         if (congestionPercent > 100) {
-            cout << "⚠️  CẢNH BÁO: Tuyến đường đang quá tải " << round(congestionPercent - 100) << "% so với thiết kế!\n";
+            cout << "⚠️  CẢNH BÁO: Tuyến đường đang quá tải " << (congestionPercent - 100) << "% so với thiết kế!\n";
         } else if (congestionPercent > 80) {
             cout << "⚠️  Tuyến đường đang trong tình trạng gần quá tải.\n";
         }
@@ -101,8 +101,8 @@ void TrafficOptimization::optimizeTraffic() {
         cout << fixed << setprecision(0);
         cout << "⚠ Không tìm thấy giải pháp khả thi trong ngân sách " << budget << " tỷ VNĐ.\n";
         cout << "💰 Ngân sách tối thiểu cần thiết để xây tuyến đường mới: " 
-             << round(minBudgetNeeded) << " tỷ VNĐ\n";
-        cout << "📊 Thiếu hụt ngân sách: " << round(minBudgetNeeded - budget) << " tỷ VNĐ\n";
+             << minBudgetNeeded << " tỷ VNĐ\n";
+        cout << "📊 Thiếu hụt ngân sách: " << (minBudgetNeeded - budget) << " tỷ VNĐ\n";
         cout << defaultfloat;
         
         cout << "\n=== GIẢI PHÁP THAY THẾ (KHÔNG CẦN NGÂN SÁCH) ===\n";
@@ -300,7 +300,7 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
     }
     
     cout << fixed << setprecision(0);
-    cout << "Chi phí dự kiến: " << round(proposal.estimatedCost) << " tỷ VNĐ\n";
+    cout << "Chi phí dự kiến: " << proposal.estimatedCost << " tỷ VNĐ\n";
     cout << defaultfloat;
     
     cout << "\n=== LÝ DO ===\n";
@@ -315,24 +315,24 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
         
         cout << fixed << setprecision(0);
         cout << "• Giảm lưu lượng trên tuyến " << congestedEdge.id << ":\n";
-        cout << "  - Giảm " << round(reductionPercent) << "% lưu lượng\n";
-        cout << "  - Từ " << round(congestedEdge.flow) << " xe/giờ xuống còn " << round(newFlow) << " xe/giờ\n";
-        cout << "  - Mức độ quá tải mới: " << round(newCongestionPercent) << "%\n";
+        cout << "  - Giảm " << reductionPercent << "% lưu lượng\n";
+        cout << "  - Từ " << congestedEdge.flow << " xe/giờ xuống còn " << newFlow << " xe/giờ\n";
+        cout << "  - Mức độ quá tải mới: " << newCongestionPercent << "%\n";
         cout << defaultfloat;
     }
     
     if (proposal.type == ProposalType::EXPAND_LANES) {
         cout << fixed << setprecision(0);
         cout << "• Thông số mở rộng đề xuất:\n";
-        cout << "  - Tăng sức chứa thêm: " << round(proposal.trafficReduction) << " xe/giờ (khoảng 40%)\n";
-        cout << "  - Sức chứa mới: " << round(congestedEdge.capacity + proposal.trafficReduction) << " xe/giờ\n";
+        cout << "  - Tăng sức chứa thêm: " << proposal.trafficReduction << " xe/giờ (khoảng 40%)\n";
+        cout << "  - Sức chứa mới: " << (congestedEdge.capacity + proposal.trafficReduction) << " xe/giờ\n";
         cout << "  - Loại: Thêm làn đường hoặc mở rộng mặt đường hiện tại\n";
         cout << defaultfloat;
     } else {
         cout << fixed << setprecision(0);
         cout << "• Thông số tuyến đường mới đề xuất:\n";
-        cout << "  - Lưu lượng xe dự kiến: " << round(proposal.trafficReduction) << " xe/giờ\n";
-        cout << "  - Sức chứa thiết kế khuyến nghị: " << round(proposal.trafficReduction * 1.3) << " xe/giờ\n";
+        cout << "  - Lưu lượng xe dự kiến: " << proposal.trafficReduction << " xe/giờ\n";
+        cout << "  - Sức chứa thiết kế khuyến nghị: " << (proposal.trafficReduction * 1.3) << " xe/giờ\n";
         cout << defaultfloat;
         
         if (proposal.isTwoSegment) {
@@ -347,7 +347,7 @@ void TrafficOptimization::displayProposal(const NewRoadProposal& proposal, const
     cout << "\n• Lợi ích bổ sung:\n";
     cout << "  - Tăng độ linh hoạt mạng lưới giao thông\n";
     cout << fixed << setprecision(0);
-    cout << "  - Giảm thời gian di chuyển trung bình " << round(proposal.travelTimeSaved) << " phút\n";
+    cout << "  - Giảm thời gian di chuyển trung bình " << proposal.travelTimeSaved << " phút\n";
     cout << defaultfloat;
     cout << "  - Giảm thiểu nguy cơ tắc nghẽn dây chuyền\n";
 }
