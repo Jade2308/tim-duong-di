@@ -74,6 +74,9 @@ public:
     bool hasEdge(const std::string& id) const; 
 
     std::vector<std::string> getNodeIds() const;
+    
+    // Get node information
+    std::shared_ptr<Node> getNodeById(const std::string& id) const;
 
     std::vector<Edge> getEdges() const;
     std::vector<Edge> outgoingEdges(const std::string& nodeId) const;

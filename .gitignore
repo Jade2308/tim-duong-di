@@ -1,3 +1,6 @@
 *.o
 *.exe
 *.dll
+gui_app
+main.exe
+project.exe
