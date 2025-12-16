@@ -670,8 +670,11 @@ void TrafficOptimization::displayTrafficFlowDistributionTable() {
     cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
     
     cout << fixed << setprecision(1);
+    // Calculate actual display length: integer part + "." + 1 decimal + "%"
+    int avgUtilInt = (int)avgUtilization;
+    int avgUtilDisplayLen = to_string(avgUtilInt).length() + 2 + 1; // +2 for ".X", +1 for "%"
     cout << "║ Tỷ lệ sử dụng trung bình:   " << avgUtilization << "%";
-    int pad3 = 64 - 31 - to_string((int)avgUtilization).length() - 3;
+    int pad3 = 64 - 31 - avgUtilDisplayLen;
     cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
     
     cout << "╠════════════════════════════════════════════════════════════════╣\n";
@@ -776,8 +779,10 @@ void TrafficOptimization::displayNodeCongestionAnalysisTable() {
         cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
         
         cout << fixed << setprecision(1);
+        int congestionInt = (int)congestionRatio;
+        int congestionDisplayLen = to_string(congestionInt).length() + 2 + 1; // +2 for ".X", +1 for "%"
         cout << "║    Tỷ lệ tắc nghẽn:  " << congestionRatio << "%";
-        int pad3 = 64 - 24 - to_string((int)congestionRatio).length() - 2;
+        int pad3 = 64 - 24 - congestionDisplayLen;
         cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
         
         if (i < displayCount - 1) {
@@ -830,8 +835,10 @@ void TrafficOptimization::displayCostBenefitComparisonTable(const std::vector<Ne
                                proposal.estimatedCost / proposal.trafficReduction : 0;
         
         cout << fixed << setprecision(2);
+        int costPerVehInt = (int)costPerVehicle;
+        int costPerVehDisplayLen = to_string(costPerVehInt).length() + 3 + 10; // +3 for ".XX", +10 for " triệu VNĐ"
         cout << "║   Chi phí/xe giảm:   " << costPerVehicle << " triệu VNĐ";
-        int pad3 = 64 - 26 - to_string(costPerVehicle).length() - 9;
+        int pad3 = 64 - 26 - costPerVehDisplayLen;
         cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
         
         cout << fixed << setprecision(0);
@@ -842,8 +849,10 @@ void TrafficOptimization::displayCostBenefitComparisonTable(const std::vector<Ne
         // Calculate effectiveness score
         double effectiveness = proposal.trafficReduction / proposal.estimatedCost * 100;
         cout << fixed << setprecision(1);
+        int effectivenessInt = (int)effectiveness;
+        int effectivenessDisplayLen = to_string(effectivenessInt).length() + 2; // +2 for ".X"
         cout << "║   Hiệu quả (điểm):   " << effectiveness;
-        int pad5 = 64 - 26 - to_string(effectiveness).length();
+        int pad5 = 64 - 26 - effectivenessDisplayLen;
         cout << string(pad5 > 0 ? pad5 : 1, ' ') << "║\n";
         
         if (count < (int)proposals.size()) {
@@ -902,7 +911,7 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
     // Very long term (5 years - accounting for traffic growth)
     TimeImpact veryLongTerm;
     veryLongTerm.period = "Rất dài hạn (5 năm)";
-    double trafficGrowth = congestedEdge.flow * 0.15; // 15% growth over 5 years
+    double trafficGrowth = congestedEdge.flow * 0.15; // 15% total growth over 5 years (~2.8% annually)
     veryLongTerm.flowReduction = proposal.trafficReduction * 0.85; // 85% effectiveness due to growth
     veryLongTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow + trafficGrowth - veryLongTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
@@ -926,8 +935,10 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
         cout << string(pad1 > 0 ? pad1 : 1, ' ') << "║\n";
         
         cout << fixed << setprecision(1);
+        int congestionInt = (int)impact.congestionLevel;
+        int congestionDisplayLen = to_string(congestionInt).length() + 2 + 1; // +2 for ".X", +1 for "%"
         cout << "║   Mức tắc nghẽn mới: " << impact.congestionLevel << "%";
-        int pad2 = 64 - 26 - to_string((int)impact.congestionLevel).length() - 2;
+        int pad2 = 64 - 26 - congestionDisplayLen;
         cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
         
         cout << fixed << setprecision(0);
@@ -941,7 +952,7 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
     }
     
     cout << "╠════════════════════════════════════════════════════════════════╣\n";
-    cout << "║ Lưu ý: Dự báo dựa trên tốc độ tăng trưởng giao thông 3%/năm ║\n";
+    cout << "║ Lưu ý: Dự báo dựa trên tốc độ tăng trưởng ~2.8%/năm         ║\n";
     cout << defaultfloat;
     cout << "╚════════════════════════════════════════════════════════════════╝\n";
 }
