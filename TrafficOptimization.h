@@ -58,4 +58,10 @@ private:
     // Automatic congestion detection methods
     std::vector<CongestionInfo> detectCongestedRoads();
     void displayCongestedRoadsList(const std::vector<CongestionInfo>& congestedRoads);
+    
+    // New display tables
+    void displayTrafficFlowDistributionTable();
+    void displayNodeCongestionAnalysisTable();
+    void displayCostBenefitComparisonTable(const std::vector<NewRoadProposal>& proposals, const Edge& congestedEdge);
+    void displayTimeBasedImpactAnalysisTable(const NewRoadProposal& proposal, const Edge& congestedEdge);
 };

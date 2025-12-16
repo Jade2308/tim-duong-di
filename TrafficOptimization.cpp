@@ -30,8 +30,16 @@ void TrafficOptimization::optimizeTraffic() {
     if (congestedRoads.empty()) {
         cout << "\n✅ KHÔNG CÓ TUYẾN ĐƯỜNG NÀO BỊ QUÁ TẢI!\n";
         cout << "Tất cả các tuyến đường đang hoạt động bình thường (lưu lượng ≤ sức chứa).\n";
+        
+        // Display overview tables even when no congestion
+        displayTrafficFlowDistributionTable();
+        displayNodeCongestionAnalysisTable();
         return;
     }
+    
+    // Display new analysis tables
+    displayTrafficFlowDistributionTable();
+    displayNodeCongestionAnalysisTable();
     
     // Hiển thị danh sách các tuyến đường bị ùn tắc
     displayCongestedRoadsList(congestedRoads);
@@ -110,11 +118,17 @@ void TrafficOptimization::optimizeTraffic() {
         return;
     }
 
+    // Display cost-benefit comparison table for all proposals
+    displayCostBenefitComparisonTable(proposals, congestedEdge);
+
     // Chọn phương án tốt nhất
     auto bestProposal = selectBestProposal(proposals);
     
     // Hiển thị giải pháp
     displayProposal(bestProposal, congestedEdge);
+    
+    // Display time-based impact analysis for the best proposal
+    displayTimeBasedImpactAnalysisTable(bestProposal, congestedEdge);
 }
 
 double TrafficOptimization::analyzeNodeCongestion(const string& nodeId) {
@@ -609,4 +623,325 @@ void TrafficOptimization::displayCongestedRoadsList(const std::vector<Congestion
         cout << "└────────────────────────────────────────────────────────────────┘\n";
         cout << "\n";
     }
+}
+
+// TABLE 1: Traffic Flow Distribution Table
+void TrafficOptimization::displayTrafficFlowDistributionTable() {
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║           BẢNG PHÂN BỐ LƯU LƯỢNG GIAO THÔNG                 ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    auto edges = map_.getEdges();
+    
+    // Calculate statistics
+    double totalFlow = 0;
+    double totalCapacity = 0;
+    int normalRoads = 0;
+    int congestedRoads = 0;
+    int underutilizedRoads = 0;
+    
+    for (const auto& e : edges) {
+        if (!e.isReverse) {
+            totalFlow += e.flow;
+            totalCapacity += e.capacity;
+            
+            if (e.capacity > 0) {
+                double utilization = e.flow / e.capacity;
+                if (utilization > 1.0) {
+                    congestedRoads++;
+                } else if (utilization < 0.5) {
+                    underutilizedRoads++;
+                } else {
+                    normalRoads++;
+                }
+            }
+        }
+    }
+    
+    double avgUtilization = totalCapacity > 0 ? (totalFlow / totalCapacity) * 100 : 0;
+    
+    cout << fixed << setprecision(0);
+    cout << "║ Tổng lưu lượng mạng:        " << totalFlow << " xe/giờ";
+    int pad1 = 64 - 31 - to_string((int)totalFlow).length() - 7;
+    cout << string(pad1 > 0 ? pad1 : 1, ' ') << "║\n";
+    
+    cout << "║ Tổng sức chứa mạng:         " << totalCapacity << " xe/giờ";
+    int pad2 = 64 - 31 - to_string((int)totalCapacity).length() - 7;
+    cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
+    
+    cout << fixed << setprecision(1);
+    cout << "║ Tỷ lệ sử dụng trung bình:   " << avgUtilization << "%";
+    int pad3 = 64 - 31 - to_string((int)avgUtilization).length() - 3;
+    cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
+    
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    cout << "║ Phân loại tuyến đường:                                       ║\n";
+    cout << fixed << setprecision(0);
+    cout << "║   🔴 Quá tải (>100%):       " << congestedRoads << " tuyến";
+    int pad4 = 64 - 31 - to_string(congestedRoads).length() - 5;
+    cout << string(pad4 > 0 ? pad4 : 1, ' ') << "║\n";
+    
+    cout << "║   🟢 Bình thường (50-100%): " << normalRoads << " tuyến";
+    int pad5 = 64 - 31 - to_string(normalRoads).length() - 5;
+    cout << string(pad5 > 0 ? pad5 : 1, ' ') << "║\n";
+    
+    cout << "║   🔵 Ít sử dụng (<50%):     " << underutilizedRoads << " tuyến";
+    int pad6 = 64 - 31 - to_string(underutilizedRoads).length() - 5;
+    cout << string(pad6 > 0 ? pad6 : 1, ' ') << "║\n";
+    
+    cout << defaultfloat;
+    cout << "╚════════════════════════════════════════════════════════════════╝\n";
+}
+
+// TABLE 2: Node Congestion Analysis Table
+void TrafficOptimization::displayNodeCongestionAnalysisTable() {
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║          BẢNG PHÂN TÍCH TẮC NGHẼN TẠI CÁC NÚT GIAO          ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    auto nodeIds = map_.getNodeIds();
+    auto edges = map_.getEdges();
+    
+    struct NodeAnalysis {
+        string nodeId;
+        double incomingFlow;
+        double outgoingFlow;
+        double incomingCapacity;
+        double outgoingCapacity;
+        int incomingEdges;
+        int outgoingEdges;
+    };
+    
+    vector<NodeAnalysis> nodeAnalyses;
+    
+    for (const auto& nodeId : nodeIds) {
+        NodeAnalysis analysis;
+        analysis.nodeId = nodeId;
+        analysis.incomingFlow = 0;
+        analysis.outgoingFlow = 0;
+        analysis.incomingCapacity = 0;
+        analysis.outgoingCapacity = 0;
+        analysis.incomingEdges = 0;
+        analysis.outgoingEdges = 0;
+        
+        for (const auto& e : edges) {
+            if (!e.isReverse) {
+                if (e.dst == nodeId) {
+                    analysis.incomingFlow += e.flow;
+                    analysis.incomingCapacity += e.capacity;
+                    analysis.incomingEdges++;
+                }
+                if (e.src == nodeId) {
+                    analysis.outgoingFlow += e.flow;
+                    analysis.outgoingCapacity += e.capacity;
+                    analysis.outgoingEdges++;
+                }
+            }
+        }
+        
+        nodeAnalyses.push_back(analysis);
+    }
+    
+    // Sort by congestion level (incoming flow / incoming capacity)
+    sort(nodeAnalyses.begin(), nodeAnalyses.end(), 
+         [](const NodeAnalysis& a, const NodeAnalysis& b) {
+             double ratioA = a.incomingCapacity > 0 ? a.incomingFlow / a.incomingCapacity : 0;
+             double ratioB = b.incomingCapacity > 0 ? b.incomingFlow / b.incomingCapacity : 0;
+             return ratioA > ratioB;
+         });
+    
+    // Display top 5 most congested nodes
+    int displayCount = min(5, (int)nodeAnalyses.size());
+    cout << "║ Top " << displayCount << " nút giao có nguy cơ tắc nghẽn cao nhất:";
+    int padTop = 64 - 44 - to_string(displayCount).length();
+    cout << string(padTop > 0 ? padTop : 1, ' ') << "║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    for (int i = 0; i < displayCount; i++) {
+        const auto& na = nodeAnalyses[i];
+        double congestionRatio = na.incomingCapacity > 0 ? 
+                                (na.incomingFlow / na.incomingCapacity) * 100 : 0;
+        
+        cout << "║ " << (i+1) << ". Nút " << na.nodeId;
+        int pad = 64 - 10 - na.nodeId.length();
+        cout << string(pad > 0 ? pad : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(0);
+        cout << "║    Lưu lượng đến:    " << na.incomingFlow << " xe/giờ";
+        int pad1 = 64 - 24 - to_string((int)na.incomingFlow).length() - 7;
+        cout << string(pad1 > 0 ? pad1 : 1, ' ') << "║\n";
+        
+        cout << "║    Sức chứa đến:     " << na.incomingCapacity << " xe/giờ";
+        int pad2 = 64 - 24 - to_string((int)na.incomingCapacity).length() - 7;
+        cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(1);
+        cout << "║    Tỷ lệ tắc nghẽn:  " << congestionRatio << "%";
+        int pad3 = 64 - 24 - to_string((int)congestionRatio).length() - 2;
+        cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
+        
+        if (i < displayCount - 1) {
+            cout << "║" << string(62, '-') << "║\n";
+        }
+    }
+    
+    cout << defaultfloat;
+    cout << "╚════════════════════════════════════════════════════════════════╝\n";
+}
+
+// TABLE 3: Cost-Benefit Comparison Table
+void TrafficOptimization::displayCostBenefitComparisonTable(const std::vector<NewRoadProposal>& proposals, const Edge& congestedEdge) {
+    if (proposals.empty()) {
+        return;
+    }
+    
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║          BẢNG SO SÁNH CHI PHÍ - LỢI ÍCH                     ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    cout << "║ Các phương án khả thi:                                       ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    int count = 1;
+    for (const auto& proposal : proposals) {
+        string typeStr;
+        if (proposal.type == ProposalType::NEW_ROAD) {
+            typeStr = "Xây đường mới";
+        } else if (proposal.type == ProposalType::EXPAND_LANES) {
+            typeStr = "Mở rộng làn";
+        } else {
+            typeStr = "Đường bypass";
+        }
+        
+        cout << "║ Phương án " << count << ": " << typeStr;
+        int pad0 = 64 - 16 - typeStr.length();
+        cout << string(pad0 > 0 ? pad0 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(0);
+        cout << "║   Chi phí:           " << proposal.estimatedCost << " tỷ VNĐ";
+        int pad1 = 64 - 26 - to_string((int)proposal.estimatedCost).length() - 7;
+        cout << string(pad1 > 0 ? pad1 : 1, ' ') << "║\n";
+        
+        cout << "║   Giảm lưu lượng:    " << proposal.trafficReduction << " xe/giờ";
+        int pad2 = 64 - 26 - to_string((int)proposal.trafficReduction).length() - 7;
+        cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
+        
+        // Calculate cost per vehicle reduction
+        double costPerVehicle = proposal.trafficReduction > 0 ? 
+                               proposal.estimatedCost / proposal.trafficReduction : 0;
+        
+        cout << fixed << setprecision(2);
+        cout << "║   Chi phí/xe giảm:   " << costPerVehicle << " triệu VNĐ";
+        int pad3 = 64 - 26 - to_string(costPerVehicle).length() - 9;
+        cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(0);
+        cout << "║   Tiết kiệm thời gian: " << proposal.travelTimeSaved << " phút";
+        int pad4 = 64 - 28 - to_string((int)proposal.travelTimeSaved).length() - 4;
+        cout << string(pad4 > 0 ? pad4 : 1, ' ') << "║\n";
+        
+        // Calculate effectiveness score
+        double effectiveness = proposal.trafficReduction / proposal.estimatedCost * 100;
+        cout << fixed << setprecision(1);
+        cout << "║   Hiệu quả (điểm):   " << effectiveness;
+        int pad5 = 64 - 26 - to_string(effectiveness).length();
+        cout << string(pad5 > 0 ? pad5 : 1, ' ') << "║\n";
+        
+        if (count < (int)proposals.size()) {
+            cout << "║" << string(62, '-') << "║\n";
+        }
+        count++;
+    }
+    
+    cout << defaultfloat;
+    cout << "╚════════════════════════════════════════════════════════════════╝\n";
+}
+
+// TABLE 4: Time-Based Impact Analysis Table
+void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadProposal& proposal, const Edge& congestedEdge) {
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║          BẢNG PHÂN TÍCH TÁC ĐỘNG THEO THỜI GIAN             ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    // Calculate impacts over different time periods
+    struct TimeImpact {
+        string period;
+        double flowReduction;
+        double congestionLevel;
+        double timeSaved;
+    };
+    
+    vector<TimeImpact> impacts;
+    
+    // Short term (3 months after completion)
+    TimeImpact shortTerm;
+    shortTerm.period = "Ngắn hạn (3 tháng)";
+    shortTerm.flowReduction = proposal.trafficReduction * 0.6; // 60% effectiveness
+    shortTerm.congestionLevel = congestedEdge.capacity > 0 ? 
+        ((congestedEdge.flow - shortTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
+    shortTerm.timeSaved = proposal.travelTimeSaved * 0.6;
+    impacts.push_back(shortTerm);
+    
+    // Medium term (1 year)
+    TimeImpact mediumTerm;
+    mediumTerm.period = "Trung hạn (1 năm)";
+    mediumTerm.flowReduction = proposal.trafficReduction * 0.9; // 90% effectiveness
+    mediumTerm.congestionLevel = congestedEdge.capacity > 0 ? 
+        ((congestedEdge.flow - mediumTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
+    mediumTerm.timeSaved = proposal.travelTimeSaved * 0.9;
+    impacts.push_back(mediumTerm);
+    
+    // Long term (3 years)
+    TimeImpact longTerm;
+    longTerm.period = "Dài hạn (3 năm)";
+    longTerm.flowReduction = proposal.trafficReduction; // 100% effectiveness
+    longTerm.congestionLevel = congestedEdge.capacity > 0 ? 
+        ((congestedEdge.flow - longTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
+    longTerm.timeSaved = proposal.travelTimeSaved;
+    impacts.push_back(longTerm);
+    
+    // Very long term (5 years - accounting for traffic growth)
+    TimeImpact veryLongTerm;
+    veryLongTerm.period = "Rất dài hạn (5 năm)";
+    double trafficGrowth = congestedEdge.flow * 0.15; // 15% growth over 5 years
+    veryLongTerm.flowReduction = proposal.trafficReduction * 0.85; // 85% effectiveness due to growth
+    veryLongTerm.congestionLevel = congestedEdge.capacity > 0 ? 
+        ((congestedEdge.flow + trafficGrowth - veryLongTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
+    veryLongTerm.timeSaved = proposal.travelTimeSaved * 0.85;
+    impacts.push_back(veryLongTerm);
+    
+    // Display the table
+    cout << "║ Dự báo tác động theo các giai đoạn:                          ║\n";
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    
+    for (size_t i = 0; i < impacts.size(); i++) {
+        const auto& impact = impacts[i];
+        
+        cout << "║ " << impact.period;
+        int pad0 = 64 - 3 - impact.period.length();
+        cout << string(pad0 > 0 ? pad0 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(0);
+        cout << "║   Giảm lưu lượng:    " << impact.flowReduction << " xe/giờ";
+        int pad1 = 64 - 26 - to_string((int)impact.flowReduction).length() - 7;
+        cout << string(pad1 > 0 ? pad1 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(1);
+        cout << "║   Mức tắc nghẽn mới: " << impact.congestionLevel << "%";
+        int pad2 = 64 - 26 - to_string((int)impact.congestionLevel).length() - 2;
+        cout << string(pad2 > 0 ? pad2 : 1, ' ') << "║\n";
+        
+        cout << fixed << setprecision(0);
+        cout << "║   Tiết kiệm thời gian: " << impact.timeSaved << " phút";
+        int pad3 = 64 - 28 - to_string((int)impact.timeSaved).length() - 4;
+        cout << string(pad3 > 0 ? pad3 : 1, ' ') << "║\n";
+        
+        if (i < impacts.size() - 1) {
+            cout << "║" << string(62, '-') << "║\n";
+        }
+    }
+    
+    cout << "╠════════════════════════════════════════════════════════════════╣\n";
+    cout << "║ Lưu ý: Dự báo dựa trên tốc độ tăng trưởng giao thông 3%/năm ║\n";
+    cout << defaultfloat;
+    cout << "╚════════════════════════════════════════════════════════════════╝\n";
 }
