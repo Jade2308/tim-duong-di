@@ -25,6 +25,7 @@ namespace {
     const double VERY_LONG_TERM_EFFECTIVENESS = 0.85; // 85% effectiveness at 5 years (accounting for growth)
     const double FIVE_YEAR_TRAFFIC_GROWTH_RATE = 0.15; // 15% total growth over 5 years (~2.8% annually)
     const int MAX_CONGESTED_NODES_DISPLAY = 5;       // Maximum number of congested nodes to display
+    const int FORECAST_YEARS = 5;                    // Forecast period for very long term analysis
 }
 
 TrafficOptimization::TrafficOptimization(RoadMap& map)
@@ -923,7 +924,7 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
     veryLongTerm.flowReduction = proposal.trafficReduction * VERY_LONG_TERM_EFFECTIVENESS;
     veryLongTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow + trafficGrowth - veryLongTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
-    veryLongTerm.timeSaved = proposal.travelTimeSaved * 0.85;
+    veryLongTerm.timeSaved = proposal.travelTimeSaved * VERY_LONG_TERM_EFFECTIVENESS;
     impacts.push_back(veryLongTerm);
     
     // Display the table
@@ -959,8 +960,9 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
         }
     }
     
-    // Calculate annual growth rate from 5-year rate: (1 + annual)^5 = 1 + five_year
-    double annualGrowthRate = (pow(1.0 + FIVE_YEAR_TRAFFIC_GROWTH_RATE, 0.2) - 1.0) * 100;
+    // Calculate annual growth rate from N-year rate: (1 + annual)^N = 1 + N_year_rate
+    // So annual = (1 + N_year_rate)^(1/N) - 1
+    double annualGrowthRate = (pow(1.0 + FIVE_YEAR_TRAFFIC_GROWTH_RATE, 1.0 / FORECAST_YEARS) - 1.0) * 100;
     
     cout << "╠════════════════════════════════════════════════════════════════╣\n";
     cout << fixed << setprecision(1);
