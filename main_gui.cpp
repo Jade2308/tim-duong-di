@@ -290,11 +290,17 @@ int main(int argc, char* argv[]) {
     // Initialize map
     RoadMap map;
     
-    // Try to load default map
-    if (map.loadFromFile("map.txt")) {
-        cout << "Loaded map.txt successfully!" << endl;
+    // Try to load map from command line argument or default file
+    string mapFile = "map.txt";
+    if (argc > 1) {
+        mapFile = argv[1];
+        cout << "Loading map from command line argument: " << mapFile << endl;
+    }
+    
+    if (map.loadFromFile(mapFile)) {
+        cout << "Loaded " << mapFile << " successfully!" << endl;
     } else {
-        cout << "Could not load map.txt, starting with empty map." << endl;
+        cout << "Could not load " << mapFile << ", starting with empty map." << endl;
     }
     
     // Main event loop

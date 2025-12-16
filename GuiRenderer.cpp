@@ -115,6 +115,7 @@ void GuiRenderer::present() {
 }
 
 void GuiRenderer::drawText(const std::string& text, int x, int y, const Color& color, int fontSize) {
+    (void)fontSize;  // fontSize not currently used, font size is fixed at initialization
     if (!font) return;
     
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
@@ -219,8 +220,8 @@ void GuiRenderer::latLonToScreen(double lat, double lon, int& x, int& y,
                                  int offsetX, int offsetY, double scale) {
     // Simple conversion: treat lat/lon as cartesian coordinates
     // Scale and offset to fit in window
-    x = static_cast<int>((lon - 107.5) * scale * 1000) + offsetX;
-    y = static_cast<int>((12.05 - lat) * scale * 1000) + offsetY;  // Inverted Y axis
+    x = static_cast<int>((lon - DEFAULT_CENTER_LON) * scale * 1000) + offsetX;
+    y = static_cast<int>((DEFAULT_CENTER_LAT - lat) * scale * 1000) + offsetY;  // Inverted Y axis
 }
 
 void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) {

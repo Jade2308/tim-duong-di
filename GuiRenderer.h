@@ -46,6 +46,7 @@ public:
     void clear(const Color& color);
     void present();
     
+    // Note: fontSize parameter is currently not implemented - font size is set at initialization
     void drawText(const std::string& text, int x, int y, const Color& color, int fontSize = 20);
     void drawRect(int x, int y, int w, int h, const Color& color, bool filled = true);
     void drawLine(int x1, int y1, int x2, int y2, const Color& color, int thickness = 2);
@@ -80,6 +81,10 @@ private:
     
     int windowWidth;
     int windowHeight;
+    
+    // Default map center coordinates (Vietnam region)
+    static constexpr double DEFAULT_CENTER_LON = 107.5;
+    static constexpr double DEFAULT_CENTER_LAT = 12.05;
     
     // Helper to convert lat/lon to screen coordinates
     void latLonToScreen(double lat, double lon, int& x, int& y, 

@@ -69,6 +69,11 @@ g++ -std=c++17 -o gui_app main_gui.cpp GuiRenderer.cpp RoadMap.cpp \
 
 Ứng dụng sẽ tự động tải file `map.txt` nếu có trong thư mục hiện tại.
 
+### Chỉ định file bản đồ khác (Specify different map file):
+```bash
+./gui_app mymap.txt
+```
+
 ## Cách sử dụng (How to Use)
 
 1. **Menu chính**: Sử dụng chuột để di chuyển và nhấp vào các nút chức năng
