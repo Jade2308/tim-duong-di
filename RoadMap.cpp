@@ -226,6 +226,16 @@ vector<string> RoadMap::getNodeIds() const {
 }
 
 /**
+ * @brief Trả về con trỏ đến Node theo ID.
+ */
+shared_ptr<Node> RoadMap::getNodeById(const string& id) const {
+    if (nodes_.count(id)) {
+        return nodes_.at(id);
+    }
+    return nullptr;
+}
+
+/**
  * @brief Trả về danh sách tất cả các Edge (bao gồm cả reverse edges).
  */
 vector<Edge> RoadMap::getEdges() const {
