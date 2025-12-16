@@ -17,6 +17,14 @@ namespace {
     const double ESTIMATED_TIME_SAVINGS_MINUTES = 10.0; // Estimated travel time reduction
     const double BYPASS_FLOW_REDIRECT_RATIO = 0.4;   // 40% of flow can redirect through bypass
     const int DEFAULT_GREEN_LIGHT_TIME = 60;         // Default traffic light green time in seconds
+    
+    // Constants for time-based impact analysis
+    const double SHORT_TERM_EFFECTIVENESS = 0.6;     // 60% effectiveness at 3 months
+    const double MEDIUM_TERM_EFFECTIVENESS = 0.9;    // 90% effectiveness at 1 year
+    const double LONG_TERM_EFFECTIVENESS = 1.0;      // 100% effectiveness at 3 years
+    const double VERY_LONG_TERM_EFFECTIVENESS = 0.85; // 85% effectiveness at 5 years (accounting for growth)
+    const double FIVE_YEAR_TRAFFIC_GROWTH_RATE = 0.15; // 15% total growth over 5 years (~2.8% annually)
+    const int MAX_CONGESTED_NODES_DISPLAY = 5;       // Maximum number of congested nodes to display
 }
 
 TrafficOptimization::TrafficOptimization(RoadMap& map)
@@ -753,8 +761,8 @@ void TrafficOptimization::displayNodeCongestionAnalysisTable() {
              return ratioA > ratioB;
          });
     
-    // Display top 5 most congested nodes
-    int displayCount = min(5, (int)nodeAnalyses.size());
+    // Display top N most congested nodes
+    int displayCount = min(MAX_CONGESTED_NODES_DISPLAY, (int)nodeAnalyses.size());
     cout << "║ Top " << displayCount << " nút giao có nguy cơ tắc nghẽn cao nhất:";
     int padTop = 64 - 44 - to_string(displayCount).length();
     cout << string(padTop > 0 ? padTop : 1, ' ') << "║\n";
@@ -884,35 +892,35 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
     // Short term (3 months after completion)
     TimeImpact shortTerm;
     shortTerm.period = "Ngắn hạn (3 tháng)";
-    shortTerm.flowReduction = proposal.trafficReduction * 0.6; // 60% effectiveness
+    shortTerm.flowReduction = proposal.trafficReduction * SHORT_TERM_EFFECTIVENESS;
     shortTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow - shortTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
-    shortTerm.timeSaved = proposal.travelTimeSaved * 0.6;
+    shortTerm.timeSaved = proposal.travelTimeSaved * SHORT_TERM_EFFECTIVENESS;
     impacts.push_back(shortTerm);
     
     // Medium term (1 year)
     TimeImpact mediumTerm;
     mediumTerm.period = "Trung hạn (1 năm)";
-    mediumTerm.flowReduction = proposal.trafficReduction * 0.9; // 90% effectiveness
+    mediumTerm.flowReduction = proposal.trafficReduction * MEDIUM_TERM_EFFECTIVENESS;
     mediumTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow - mediumTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
-    mediumTerm.timeSaved = proposal.travelTimeSaved * 0.9;
+    mediumTerm.timeSaved = proposal.travelTimeSaved * MEDIUM_TERM_EFFECTIVENESS;
     impacts.push_back(mediumTerm);
     
     // Long term (3 years)
     TimeImpact longTerm;
     longTerm.period = "Dài hạn (3 năm)";
-    longTerm.flowReduction = proposal.trafficReduction; // 100% effectiveness
+    longTerm.flowReduction = proposal.trafficReduction * LONG_TERM_EFFECTIVENESS;
     longTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow - longTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
-    longTerm.timeSaved = proposal.travelTimeSaved;
+    longTerm.timeSaved = proposal.travelTimeSaved * LONG_TERM_EFFECTIVENESS;
     impacts.push_back(longTerm);
     
     // Very long term (5 years - accounting for traffic growth)
     TimeImpact veryLongTerm;
     veryLongTerm.period = "Rất dài hạn (5 năm)";
-    double trafficGrowth = congestedEdge.flow * 0.15; // 15% total growth over 5 years (~2.8% annually)
-    veryLongTerm.flowReduction = proposal.trafficReduction * 0.85; // 85% effectiveness due to growth
+    double trafficGrowth = congestedEdge.flow * FIVE_YEAR_TRAFFIC_GROWTH_RATE;
+    veryLongTerm.flowReduction = proposal.trafficReduction * VERY_LONG_TERM_EFFECTIVENESS;
     veryLongTerm.congestionLevel = congestedEdge.capacity > 0 ? 
         ((congestedEdge.flow + trafficGrowth - veryLongTerm.flowReduction) / congestedEdge.capacity) * 100 : 0;
     veryLongTerm.timeSaved = proposal.travelTimeSaved * 0.85;
@@ -951,8 +959,15 @@ void TrafficOptimization::displayTimeBasedImpactAnalysisTable(const NewRoadPropo
         }
     }
     
+    // Calculate annual growth rate from 5-year rate: (1 + annual)^5 = 1 + five_year
+    double annualGrowthRate = (pow(1.0 + FIVE_YEAR_TRAFFIC_GROWTH_RATE, 0.2) - 1.0) * 100;
+    
     cout << "╠════════════════════════════════════════════════════════════════╣\n";
-    cout << "║ Lưu ý: Dự báo dựa trên tốc độ tăng trưởng ~2.8%/năm         ║\n";
+    cout << fixed << setprecision(1);
+    cout << "║ Lưu ý: Dự báo dựa trên tốc độ tăng trưởng ~" << annualGrowthRate << "%/năm";
+    int noteDisplayLen = to_string((int)annualGrowthRate).length() + 2; // integer + ".X"
+    int notePad = 64 - 44 - noteDisplayLen - 5; // 44 for text before number, 5 for "%/năm"
+    cout << string(notePad > 0 ? notePad : 1, ' ') << "║\n";
     cout << defaultfloat;
     cout << "╚════════════════════════════════════════════════════════════════╝\n";
 }
