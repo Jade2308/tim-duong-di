@@ -43,7 +43,7 @@ string utf8_truncate(const string& str, size_t maxDisplayWidth) {
         }
         
         // Determine UTF-8 character length and validate boundaries
-        size_t charLen = 1;
+        size_t charLen;
         if (c < 0x80) {
             charLen = 1;
         } else if ((c & 0xE0) == 0xC0) {
@@ -76,7 +76,7 @@ size_t utf8_length(const string& str) {
     size_t count = 0;
     for (size_t i = 0; i < str.length(); ) {
         unsigned char c = str[i];
-        size_t charLen = 1;
+        size_t charLen;
         
         if (c < 0x80) {
             charLen = 1;
@@ -119,7 +119,7 @@ size_t display_width(const string& str) {
             i++;
         } else {
             unsigned char c = str[i];
-            size_t charLen = 1;
+            size_t charLen;
             
             if (c < 0x80) {
                 charLen = 1;
@@ -383,14 +383,17 @@ int main() {
                     if (displayLen > (size_t)(BOX_WIDTH - 4)) {
                         // Display in chunks using UTF-8 aware truncation
                         string remaining = pathStr;
-                        while (display_width(remaining) > 0) {
+                        while (display_width(remaining) > 0 && !remaining.empty()) {
                             string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
-                            cout << boxLine(chunk);
                             
-                            // Remove displayed chunk from remaining string
-                            if (chunk.length() >= remaining.length()) {
+                            // Safety check to prevent infinite loop
+                            if (chunk.empty() || chunk.length() >= remaining.length()) {
+                                // Display remaining and break
+                                cout << boxLine(remaining);
                                 break;
                             }
+                            
+                            cout << boxLine(chunk);
                             remaining = remaining.substr(chunk.length());
                         }
                     } else {
@@ -462,14 +465,17 @@ int main() {
                     if (displayLen > (size_t)(BOX_WIDTH - 4)) {
                         // Display in chunks using UTF-8 aware truncation
                         string remaining = pathStr;
-                        while (display_width(remaining) > 0) {
+                        while (display_width(remaining) > 0 && !remaining.empty()) {
                             string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
-                            cout << boxLine(chunk);
                             
-                            // Remove displayed chunk from remaining string
-                            if (chunk.length() >= remaining.length()) {
+                            // Safety check to prevent infinite loop
+                            if (chunk.empty() || chunk.length() >= remaining.length()) {
+                                // Display remaining and break
+                                cout << boxLine(remaining);
                                 break;
                             }
+                            
+                            cout << boxLine(chunk);
                             remaining = remaining.substr(chunk.length());
                         }
                     } else {
