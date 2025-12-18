@@ -1,6 +1,7 @@
 *.o
 *.exe
 *.dll
+*.log
 gui_app
 main.exe
 project.exe
