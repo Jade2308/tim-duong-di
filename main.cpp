@@ -21,6 +21,47 @@ using namespace std;
 #define CYAN    "\033[36m"
 #define INVERT  "\033[7m"
 
+// Helper function to truncate UTF-8 string to a maximum display width
+string utf8_truncate(const string& str, size_t maxDisplayWidth) {
+    size_t width = 0;
+    size_t bytePos = 0;
+    
+    for (size_t i = 0; i < str.length(); ) {
+        if (width >= maxDisplayWidth) {
+            break;
+        }
+        
+        unsigned char c = str[i];
+        
+        // Skip ANSI escape sequences
+        if (c == '\033') {
+            while (i < str.length() && str[i] != 'm') {
+                i++;
+            }
+            if (i < str.length()) i++;  // Skip the 'm'
+            continue;
+        }
+        
+        // Count UTF-8 character and advance i
+        if (c < 0x80) {
+            i += 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            i += 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            i += 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            i += 4;
+        } else {
+            i += 1;
+        }
+        
+        width++;
+        bytePos = i;  // Update byte position after successfully reading a character
+    }
+    
+    return str.substr(0, bytePos);
+}
+
 // Helper function to count UTF-8 characters (not bytes)
 size_t utf8_length(const string& str) {
     size_t count = 0;
@@ -110,9 +151,8 @@ string boxLine(const string& content) {
     size_t displayLen = display_width(s);
     
     if ((int)displayLen > inner) {
-        // Truncate string to fit (this is approximate)
-        size_t approxLen = (size_t)(s.length() * inner / displayLen);
-        s = s.substr(0, approxLen);
+        // Properly truncate UTF-8 string at character boundary
+        s = utf8_truncate(s, inner);
         displayLen = display_width(s);
     }
     
@@ -126,9 +166,8 @@ string boxCenter(const string& content) {
     size_t displayLen = display_width(s);
     
     if ((int)displayLen > inner) {
-        // Truncate string to fit
-        size_t approxLen = (size_t)(s.length() * inner / displayLen);
-        s = s.substr(0, approxLen);
+        // Properly truncate UTF-8 string at character boundary
+        s = utf8_truncate(s, inner);
         displayLen = display_width(s);
     }
     
