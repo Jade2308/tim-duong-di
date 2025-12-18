@@ -2,11 +2,11 @@
 
 ## Mô tả (Description)
 
-Ứng dụng phân tích bản đồ giao thông với giao diện đồ họa (GUI) được xây dựng bằng SDL2. 
+Ứng dụng phân tích bản đồ giao thông với giao diện đồ họa (GUI) được xây dựng bằng SFML. 
 Ứng dụng cho phép người dùng tương tác với bản đồ giao thông, tìm đường đi ngắn nhất, 
 gợi ý tuyến đường thay thế và phân tích tối ưu hóa giao thông.
 
-This is a traffic map analysis application with a graphical user interface (GUI) built with SDL2.
+This is a traffic map analysis application with a graphical user interface (GUI) built with SFML.
 The application allows users to interact with traffic maps, find shortest paths, 
 suggest alternative routes, and analyze traffic optimization.
 
@@ -38,14 +38,27 @@ suggest alternative routes, and analyze traffic optimization.
 ## Yêu cầu hệ thống (System Requirements)
 
 ### Linux
-- SDL2 library
-- SDL2_ttf library
+- SFML library (2.5 trở lên)
 - g++ compiler with C++17 support
+
+### Windows
+- SFML library (2.5 trở lên)
+- MinGW hoặc Visual Studio
+
+### Ưu điểm của SFML so với SDL2:
+- ✅ Dễ cài đặt và sử dụng hơn
+- ✅ API hiện đại và trực quan hơn
+- ✅ Hỗ trợ Unicode/UTF-8 tốt hơn cho tiếng Việt
+- ✅ Hiệu năng tốt và ổn định trên nhiều nền tảng
+- ✅ Tích hợp tốt với C++ hiện đại
 
 ### Cài đặt trên Ubuntu/Debian:
 ```bash
-sudo apt-get install libsdl2-dev libsdl2-ttf-dev
+sudo apt-get install libsfml-dev
 ```
+
+### Cài đặt trên Windows:
+Tải SFML từ https://www.sfml-dev.org/download.php
 
 ## Biên dịch (Compilation)
 
@@ -58,7 +71,7 @@ make
 ```bash
 g++ -std=c++17 -o gui_app main_gui.cpp GuiRenderer.cpp RoadMap.cpp \
     ShortestPath.cpp AlternativeRoute.cpp TrafficOptimization.cpp \
-    -lSDL2 -lSDL2_ttf
+    -lsfml-graphics -lsfml-window -lsfml-system
 ```
 
 ## Chạy ứng dụng (Running the Application)
@@ -113,18 +126,38 @@ File `map.txt` có định dạng:
 - ✅ Màu sắc biểu thị tình trạng giao thông
 - ✅ Hỗ trợ đa nền tảng (cross-platform)
 
+## Thay đổi từ SDL2 sang SFML (Migration from SDL2 to SFML)
+
+**Lý do chuyển đổi:**
+- SDL2 không chạy được trên một số máy người dùng
+- SFML dễ cài đặt và sử dụng hơn
+- SFML hỗ trợ hiển thị tiếng Việt (UTF-8) tốt hơn
+- API của SFML trực quan và dễ bảo trì hơn
+
+**Các thay đổi chính:**
+- Chuyển từ SDL2/SDL_ttf sang SFML Graphics/Window/System
+- Cải thiện hiển thị văn bản Unicode/UTF-8
+- Tối ưu hóa rendering với API của SFML
+- Giữ nguyên toàn bộ chức năng và giao diện người dùng
+
 ## Troubleshooting
 
 ### Lỗi "Failed to load font":
 Ứng dụng sẽ tiếp tục chạy nhưng không hiển thị văn bản. Đảm bảo font DejaVu hoặc Liberation được cài đặt:
 ```bash
-sudo apt-get install fonts-dejavu fonts-liberation
+sudo apt-get install fonts-dejavu fonts-liberation fonts-freefont-ttf
 ```
 
-### Lỗi "SDL could not initialize":
-Kiểm tra SDL2 đã được cài đặt đúng:
+### Lỗi "Window could not be created":
+Kiểm tra SFML đã được cài đặt đúng:
 ```bash
-sudo apt-get install --reinstall libsdl2-dev libsdl2-ttf-dev
+sudo apt-get install --reinstall libsfml-dev
+```
+
+### Lỗi khi build:
+Đảm bảo các thư viện SFML được cài đầy đủ:
+```bash
+sudo apt-get install libsfml-graphics2.6 libsfml-window2.6 libsfml-system2.6 libsfml-dev
 ```
 
 ## Tác giả (Author)
