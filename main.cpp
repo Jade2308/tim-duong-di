@@ -21,6 +21,132 @@ using namespace std;
 #define CYAN    "\033[36m"
 #define INVERT  "\033[7m"
 
+// Helper function to truncate UTF-8 string to a maximum display width
+string utf8_truncate(const string& str, size_t maxDisplayWidth) {
+    size_t width = 0;
+    size_t bytePos = 0;
+    
+    for (size_t i = 0; i < str.length(); ) {
+        if (width >= maxDisplayWidth) {
+            break;
+        }
+        
+        unsigned char c = str[i];
+        
+        // Skip ANSI escape sequences
+        if (c == '\033') {
+            while (i < str.length() && str[i] != 'm') {
+                i++;
+            }
+            if (i < str.length()) i++;  // Skip the 'm'
+            continue;
+        }
+        
+        // Determine UTF-8 character length and validate boundaries
+        size_t charLen;
+        if (c < 0x80) {
+            charLen = 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            charLen = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            charLen = 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            charLen = 4;
+        } else {
+            // Invalid UTF-8 start byte, skip it
+            i++;
+            continue;
+        }
+        
+        // Check if we have enough bytes for this character
+        if (i + charLen > str.length()) {
+            break;  // Incomplete character at end of string
+        }
+        
+        i += charLen;
+        width++;
+        bytePos = i;
+    }
+    
+    return str.substr(0, bytePos);
+}
+
+// Helper function to count UTF-8 characters (not bytes)
+size_t utf8_length(const string& str) {
+    size_t count = 0;
+    for (size_t i = 0; i < str.length(); ) {
+        unsigned char c = str[i];
+        size_t charLen;
+        
+        if (c < 0x80) {
+            charLen = 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            charLen = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            charLen = 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            charLen = 4;
+        } else {
+            // Invalid UTF-8 start byte
+            i++;
+            continue;
+        }
+        
+        // Check boundary
+        if (i + charLen > str.length()) {
+            break;  // Incomplete character
+        }
+        
+        i += charLen;
+        count++;
+    }
+    return count;
+}
+
+// Helper function to get display width (considering ANSI escape codes)
+size_t display_width(const string& str) {
+    size_t width = 0;
+    bool in_escape = false;
+    
+    for (size_t i = 0; i < str.length(); ) {
+        if (str[i] == '\033') {
+            in_escape = true;
+            i++;
+        } else if (in_escape && str[i] == 'm') {
+            in_escape = false;
+            i++;
+        } else if (in_escape) {
+            i++;
+        } else {
+            unsigned char c = str[i];
+            size_t charLen;
+            
+            if (c < 0x80) {
+                charLen = 1;
+            } else if ((c & 0xE0) == 0xC0) {
+                charLen = 2;
+            } else if ((c & 0xF0) == 0xE0) {
+                charLen = 3;
+            } else if ((c & 0xF8) == 0xF0) {
+                charLen = 4;
+            } else {
+                // Invalid UTF-8, skip
+                i++;
+                continue;
+            }
+            
+            // Check boundary
+            if (i + charLen > str.length()) {
+                break;
+            }
+            
+            i += charLen;
+            width++;
+        }
+    }
+    return width;
+}
+
 // Initialize console for UTF-8 and ANSI (safe)
 void enableConsole() {
     SetConsoleOutputCP(CP_UTF8);
@@ -53,19 +179,31 @@ string boxBottom() {
 string boxLine(const string& content) {
     int inner = BOX_WIDTH - 2;
     string s = content;
-    if ((int)s.length() > inner) s = s.substr(0, inner);
-    int pad = inner - (int)s.length();
-    // Ensure pad - 1 is non-negative
+    size_t displayLen = display_width(s);
+    
+    if ((int)displayLen > inner) {
+        // Properly truncate UTF-8 string at character boundary
+        s = utf8_truncate(s, inner);
+        displayLen = display_width(s);
+    }
+    
+    int pad = inner - (int)displayLen;
     if (pad < 1) pad = 1;
     return "| " + s + string(pad - 1, ' ') + "|\n";
 }
 string boxCenter(const string& content) {
     int inner = BOX_WIDTH - 2;
     string s = content;
-    if ((int)s.length() > inner) s = s.substr(0, inner);
-    int left = (inner - (int)s.length()) / 2;
-    int right = inner - (int)s.length() - left;
-    // Ensure left and right - 1 are non-negative
+    size_t displayLen = display_width(s);
+    
+    if ((int)displayLen > inner) {
+        // Properly truncate UTF-8 string at character boundary
+        s = utf8_truncate(s, inner);
+        displayLen = display_width(s);
+    }
+    
+    int left = (inner - (int)displayLen) / 2;
+    int right = inner - (int)displayLen - left;
     if (left < 0) left = 0;
     if (right < 1) right = 1;
     return "| " + string(left, ' ') + s + string(right - 1, ' ') + "|\n";
@@ -227,10 +365,45 @@ int main() {
                 double t = sp.findShortestPath(s, g, path);
                 if (t < 0) cout << RED << "💔 Không tìm thấy đường đi từ " << s << " đến " << g << "\n" << RESET;
                 else {
-                    cout << GREEN << "✅ ĐƯỜNG ĐI NGẮN NHẤT ĐÃ TÌM THẤY:" << RESET << "\n";
-                    cout << "   Tuyến đường: ";
-                    for (auto &n : path) cout << n << (n == path.back() ? "" : " -> ");
-                    cout << "\n   " << CYAN << "Tổng thời gian di chuyển: " << t << " đơn vị thời gian." << RESET << "\n";
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(GREEN "✅ ĐƯỜNG ĐI NGẮN NHẤT ĐÃ TÌM THẤY" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    
+                    // Display path with arrows
+                    string pathStr = "   ";
+                    for (size_t i = 0; i < path.size(); ++i) {
+                        pathStr += path[i];
+                        if (i < path.size() - 1) pathStr += " -> ";
+                    }
+                    
+                    // Split long path into multiple lines if needed (UTF-8 aware)
+                    size_t displayLen = display_width(pathStr);
+                    if (displayLen > (size_t)(BOX_WIDTH - 4)) {
+                        // Display in chunks using UTF-8 aware truncation
+                        string remaining = pathStr;
+                        while (display_width(remaining) > 0 && !remaining.empty()) {
+                            string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
+                            
+                            // Safety check to prevent infinite loop
+                            if (chunk.empty() || chunk.length() >= remaining.length()) {
+                                // Display remaining and break
+                                cout << boxLine(remaining);
+                                break;
+                            }
+                            
+                            cout << boxLine(chunk);
+                            remaining = remaining.substr(chunk.length());
+                        }
+                    } else {
+                        cout << boxLine(pathStr);
+                    }
+                    
+                    cout << boxLine(" ");
+                    cout << boxLine(CYAN "Tổng thời gian: " + to_string((int)t) + " đơn vị" RESET);
+                    cout << boxBottom();
+                    cout << "\n";
                 }
             }
             system("pause");
@@ -257,7 +430,63 @@ int main() {
             } else {
                 cout << CYAN << "🔄 Đang tìm đường đi thay thế khi chặn Edge " << edgeId << "...\n" << RESET;
                 AlternativeRoute alt(map);
-                alt.suggestAlternative(edgeId, s, g);
+                
+                // Use the new method that returns a result
+                auto result = alt.findAlternativeRoute(edgeId, s, g);
+                
+                if (!result.success) {
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(RED "❌ KHÔNG TÌM THẤY ĐƯỜNG THAY THẾ" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    cout << boxLine("Edge bị chặn: " + edgeId);
+                    cout << boxLine("Không có tuyến đường thay thế khả thi");
+                    cout << boxLine(" ");
+                    cout << boxBottom();
+                } else {
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(GREEN "✅ TUYẾN ĐƯỜNG THAY THẾ ĐÃ TÌM THẤY" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    cout << boxLine(RED "Edge bị chặn: " + edgeId RESET);
+                    cout << boxLine(" ");
+                    
+                    // Display path with arrows
+                    string pathStr = "   ";
+                    for (size_t i = 0; i < result.path.size(); ++i) {
+                        pathStr += result.path[i];
+                        if (i < result.path.size() - 1) pathStr += " -> ";
+                    }
+                    
+                    // Split long path into multiple lines if needed (UTF-8 aware)
+                    size_t displayLen = display_width(pathStr);
+                    if (displayLen > (size_t)(BOX_WIDTH - 4)) {
+                        // Display in chunks using UTF-8 aware truncation
+                        string remaining = pathStr;
+                        while (display_width(remaining) > 0 && !remaining.empty()) {
+                            string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
+                            
+                            // Safety check to prevent infinite loop
+                            if (chunk.empty() || chunk.length() >= remaining.length()) {
+                                // Display remaining and break
+                                cout << boxLine(remaining);
+                                break;
+                            }
+                            
+                            cout << boxLine(chunk);
+                            remaining = remaining.substr(chunk.length());
+                        }
+                    } else {
+                        cout << boxLine(pathStr);
+                    }
+                    
+                    cout << boxLine(" ");
+                    cout << boxLine(CYAN "Thời gian: " + to_string((int)result.travelTime) + " đơn vị" RESET);
+                    cout << boxBottom();
+                    cout << "\n";
+                }
             }
             system("pause");
             clearInputBuffer();

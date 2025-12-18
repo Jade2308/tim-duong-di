@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <set>
 #include <unordered_map>
+#include <limits>
 using namespace std;
 
 // Named constants for traffic optimization calculations
@@ -50,6 +51,19 @@ void TrafficOptimization::optimizeTraffic() {
 
     cout << "Nhập ngân sách tối đa (tỷ VNĐ): ";
     cin >> budget;
+    
+    // Validate budget input
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "❌ Ngân sách không hợp lệ. Vui lòng nhập số.\n";
+        return;
+    }
+    
+    if (budget < 0) {
+        cout << "❌ Ngân sách không thể âm. Vui lòng nhập số dương.\n";
+        return;
+    }
 
     if (!map_.hasEdge(congestedEdgeId)) {
         cout << "❌ Tuyến đường không tồn tại.\n";
@@ -97,15 +111,18 @@ void TrafficOptimization::optimizeTraffic() {
     if (proposals.empty()) {
         // Tính ngân sách tối thiểu cần thiết
         double minBudgetNeeded = estimateMinimumBudget(congestedEdge);
-        cout << "\n=== VẤN ĐÈ ===\n";
+        cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+        cout << "║                    KHÔNG TÌM THẤY GIẢI PHÁP                  ║\n";
+        cout << "╚════════════════════════════════════════════════════════════════╝\n";
         cout << fixed << setprecision(0);
-        cout << "⚠ Không tìm thấy giải pháp khả thi trong ngân sách " << budget << " tỷ VNĐ.\n";
-        cout << "💰 Ngân sách tối thiểu cần thiết để xây tuyến đường mới: " 
-             << minBudgetNeeded << " tỷ VNĐ\n";
+        cout << "\n⚠  Ngân sách hiện tại: " << budget << " tỷ VNĐ\n";
+        cout << "💰 Ngân sách tối thiểu cần thiết: " << minBudgetNeeded << " tỷ VNĐ\n";
         cout << "📊 Thiếu hụt ngân sách: " << (minBudgetNeeded - budget) << " tỷ VNĐ\n";
         cout << defaultfloat;
         
-        cout << "\n=== GIẢI PHÁP THAY THẾ (KHÔNG CẦN NGÂN SÁCH) ===\n";
+        cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+        cout << "║         GIẢI PHÁP THAY THẾ (KHÔNG CẦN NGÂN SÁCH)           ║\n";
+        cout << "╚════════════════════════════════════════════════════════════════╝\n";
         displayTrafficSignalSolution(congestedEdge);
         return;
     }
@@ -377,35 +394,49 @@ double TrafficOptimization::estimateMinimumBudget(const Edge& congestedEdge) {
 }
 
 void TrafficOptimization::displayTrafficSignalSolution(const Edge& congestedEdge) {
-    cout << "1. Điều chỉnh thời gian đèn tín hiệu:\n";
-    cout << "   - Tăng thời gian đèn xanh cho hướng " << congestedEdge.src << " → " << congestedEdge.dst << "\n";
+    cout << "\n┌────────────────────────────────────────────────────────────────┐\n";
+    cout << "│ 1. Điều chỉnh thời gian đèn tín hiệu                        │\n";
+    cout << "└────────────────────────────────────────────────────────────────┘\n";
+    cout << "   • Tăng thời gian đèn xanh cho hướng " << congestedEdge.src << " → " << congestedEdge.dst << "\n";
     
     // Tính toán thời gian đề xuất dựa trên mức độ quá tải
     if (congestedEdge.capacity > 0) {
         double congestionRatio = congestedEdge.flow / congestedEdge.capacity;
         int recommendedGreenTime = (int)(DEFAULT_GREEN_LIGHT_TIME * congestionRatio * 1.2);
         
-        cout << "   - Thời gian đèn xanh đề xuất: " << recommendedGreenTime << " giây (hiện tại: " << DEFAULT_GREEN_LIGHT_TIME << " giây)\n";
+        cout << "   • Thời gian đèn xanh đề xuất: " << recommendedGreenTime 
+             << " giây (hiện tại: " << DEFAULT_GREEN_LIGHT_TIME << " giây)\n";
     }
     
-    cout << "\n2. Điều tiết luồng giao thông:\n";
-    cout << "   - Hạn chế xe tải nặng vào giờ cao điểm (7-9h và 17-19h)\n";
-    cout << "   - Khuyến khích phân làn theo loại phương tiện\n";
+    cout << "\n┌────────────────────────────────────────────────────────────────┐\n";
+    cout << "│ 2. Điều tiết luồng giao thông                                │\n";
+    cout << "└────────────────────────────────────────────────────────────────┘\n";
+    cout << "   • Hạn chế xe tải nặng vào giờ cao điểm (7-9h và 17-19h)\n";
+    cout << "   • Khuyến khích phân làn theo loại phương tiện\n";
     
-    cout << "\n3. Quản lý tốc độ:\n";
-    cout << "   - Tốc độ tối đa khuyến nghị: " << (int)(congestedEdge.avgSpeed * 0.8) << " km/h (để tăng độ an toàn)\n";
-    cout << "   - Đặt biển báo tốc độ điện tử thông minh\n";
+    cout << "\n┌────────────────────────────────────────────────────────────────┐\n";
+    cout << "│ 3. Quản lý tốc độ                                            │\n";
+    cout << "└────────────────────────────────────────────────────────────────┘\n";
+    cout << "   • Tốc độ tối đa khuyến nghị: " << (int)(congestedEdge.avgSpeed * 0.8) 
+         << " km/h (để tăng độ an toàn)\n";
+    cout << "   • Đặt biển báo tốc độ điện tử thông minh\n";
     
-    cout << "\n4. Giám sát và điều phối:\n";
-    cout << "   - Lắp đặt camera giám sát lưu lượng xe\n";
-    cout << "   - Triển khai hệ thống điều khiển tín hiệu thích ứng (Adaptive Traffic Control)\n";
+    cout << "\n┌────────────────────────────────────────────────────────────────┐\n";
+    cout << "│ 4. Giám sát và điều phối                                     │\n";
+    cout << "└────────────────────────────────────────────────────────────────┘\n";
+    cout << "   • Lắp đặt camera giám sát lưu lượng xe\n";
+    cout << "   • Triển khai hệ thống điều khiển tín hiệu thích ứng\n";
     
-    cout << "\n5. Thông tin và cảnh báo:\n";
-    cout << "   - Cảnh báo tài xế về tình trạng tắc đường qua ứng dụng di động\n";
-    cout << "   - Đề xuất tuyến đường thay thế cho người dân\n";
+    cout << "\n┌────────────────────────────────────────────────────────────────┐\n";
+    cout << "│ 5. Thông tin và cảnh báo                                     │\n";
+    cout << "└────────────────────────────────────────────────────────────────┘\n";
+    cout << "   • Cảnh báo tài xế về tình trạng tắc đường qua ứng dụng\n";
+    cout << "   • Đề xuất tuyến đường thay thế cho người dân\n";
     
-    cout << "\n⏱️  Thời gian triển khai: 2-4 tuần\n";
-    cout << "💰 Chi phí ước tính: 5-10 tỷ VNĐ (chủ yếu cho thiết bị và công nghệ)\n";
+    cout << "\n╔════════════════════════════════════════════════════════════════╗\n";
+    cout << "║ ⏱️  Thời gian triển khai: 2-4 tuần                            ║\n";
+    cout << "║ 💰 Chi phí ước tính: 5-10 tỷ VNĐ                              ║\n";
+    cout << "╚════════════════════════════════════════════════════════════════╝\n";
 }
 
 bool TrafficOptimization::isOverCapacity(const Edge& edge) {
