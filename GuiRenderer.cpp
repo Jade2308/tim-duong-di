@@ -308,29 +308,50 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
                                 int offsetX, int offsetY, double scale) {
     if (path.size() < 2) return;
     
-    // Draw highlighted path
+    // Calculate the same bounding box and center as drawMap for consistency
+    auto nodeIds = map.getNodeIds();
+    double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
+    for (const auto& nodeId : nodeIds) {
+        auto node = map.getNodeById(nodeId);
+        if (node) {
+            minLat = std::min(minLat, node->lat);
+            maxLat = std::max(maxLat, node->lat);
+            minLon = std::min(minLon, node->lon);
+            maxLon = std::max(maxLon, node->lon);
+        }
+    }
+    
+    double latRange = maxLat - minLat;
+    double lonRange = maxLon - minLon;
+    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double centerLat = (minLat + maxLat) / 2.0;
+    double centerLon = (minLon + maxLon) / 2.0;
+    
+    // Draw highlighted path with thicker line
     for (size_t i = 0; i < path.size() - 1; i++) {
         auto srcNode = map.getNodeById(path[i]);
         auto dstNode = map.getNodeById(path[i+1]);
         
         if (srcNode && dstNode) {
-            int x1, y1, x2, y2;
-            latLonToScreen(srcNode->lat, srcNode->lon, x1, y1, offsetX, offsetY, scale);
-            latLonToScreen(dstNode->lat, dstNode->lon, x2, y2, offsetX, offsetY, scale);
+            int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
+            int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawLine(x1, y1, x2, y2, Color(255, 200, 0), 5);  // Yellow highlight
+            // Draw thicker yellow line for the path
+            drawLine(x1, y1, x2, y2, Color(255, 215, 0), 6);  // Brighter yellow, thicker
         }
     }
     
-    // Draw path nodes
+    // Draw highlighted path nodes
     for (const auto& nodeId : path) {
         auto node = map.getNodeById(nodeId);
         if (node) {
-            int x, y;
-            latLonToScreen(node->lat, node->lon, x, y, offsetX, offsetY, scale);
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawCircle(x, y, 10, Color(255, 200, 0), true);
-            drawCircle(x, y, 10, Color(255, 255, 255), false);
+            drawCircle(x, y, 10, Color(255, 215, 0), true);  // Filled yellow circle
+            drawCircle(x, y, 10, Color(255, 255, 255), false);  // White outline
         }
     }
 }

@@ -17,11 +17,16 @@ void AlternativeRoute::suggestAlternative(const string& blockedEdgeId,
     ShortestPath sp(map_);
     double t = sp.findShortestPath(start, goal, path);
 
-    if (t < 0) cout << "❌ Không có tuyến thay thế.\n";
-    else {
-        cout << "✔ Tuyến thay thế:  ";
-        for (auto &p : path) cout << p << " ";
-        cout << "\nThời gian: " << t << "\n";
+    if (t < 0) {
+        cout << "❌ Không có tuyến thay thế.\n";
+    } else {
+        cout << "✅ TUYẾN ĐƯỜNG THAY THẾ ĐÃ TÌM THẤY:\n";
+        cout << "   Tuyến đường: ";
+        for (size_t i = 0; i < path.size(); ++i) {
+            cout << path[i];
+            if (i < path.size() - 1) cout << " -> ";
+        }
+        cout << "\n   Thời gian di chuyển: " << t << " đơn vị thời gian.\n";
     }
 
     map_.unblockAll();

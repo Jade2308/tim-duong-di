@@ -227,10 +227,35 @@ int main() {
                 double t = sp.findShortestPath(s, g, path);
                 if (t < 0) cout << RED << "💔 Không tìm thấy đường đi từ " << s << " đến " << g << "\n" << RESET;
                 else {
-                    cout << GREEN << "✅ ĐƯỜNG ĐI NGẮN NHẤT ĐÃ TÌM THẤY:" << RESET << "\n";
-                    cout << "   Tuyến đường: ";
-                    for (auto &n : path) cout << n << (n == path.back() ? "" : " -> ");
-                    cout << "\n   " << CYAN << "Tổng thời gian di chuyển: " << t << " đơn vị thời gian." << RESET << "\n";
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(GREEN "✅ ĐƯỜNG ĐI NGẮN NHẤT ĐÃ TÌM THẤY" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    
+                    // Display path with arrows
+                    string pathStr = "   ";
+                    for (size_t i = 0; i < path.size(); ++i) {
+                        pathStr += path[i];
+                        if (i < path.size() - 1) pathStr += " -> ";
+                    }
+                    
+                    // Split long path into multiple lines if needed
+                    if (pathStr.length() > BOX_WIDTH - 4) {
+                        size_t pos = 0;
+                        while (pos < pathStr.length()) {
+                            size_t lineLen = std::min(pathStr.length() - pos, (size_t)(BOX_WIDTH - 4));
+                            cout << boxLine(pathStr.substr(pos, lineLen));
+                            pos += lineLen;
+                        }
+                    } else {
+                        cout << boxLine(pathStr);
+                    }
+                    
+                    cout << boxLine(" ");
+                    cout << boxLine(CYAN "Tổng thời gian: " + to_string((int)t) + " đơn vị" RESET);
+                    cout << boxBottom();
+                    cout << "\n";
                 }
             }
             system("pause");
@@ -257,7 +282,53 @@ int main() {
             } else {
                 cout << CYAN << "🔄 Đang tìm đường đi thay thế khi chặn Edge " << edgeId << "...\n" << RESET;
                 AlternativeRoute alt(map);
-                alt.suggestAlternative(edgeId, s, g);
+                
+                // Use the new method that returns a result
+                auto result = alt.findAlternativeRoute(edgeId, s, g);
+                
+                if (!result.success) {
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(RED "❌ KHÔNG TÌM THẤY ĐƯỜNG THAY THẾ" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    cout << boxLine("Edge bị chặn: " + edgeId);
+                    cout << boxLine("Không có tuyến đường thay thế khả thi");
+                    cout << boxLine(" ");
+                    cout << boxBottom();
+                } else {
+                    cout << "\n";
+                    cout << boxTop();
+                    cout << boxCenter(GREEN "✅ TUYẾN ĐƯỜNG THAY THẾ ĐÃ TÌM THẤY" RESET);
+                    cout << "|" + string(BOX_WIDTH - 2, '=') + "|\n";
+                    cout << boxLine(" ");
+                    cout << boxLine(RED "Edge bị chặn: " + edgeId RESET);
+                    cout << boxLine(" ");
+                    
+                    // Display path with arrows
+                    string pathStr = "   ";
+                    for (size_t i = 0; i < result.path.size(); ++i) {
+                        pathStr += result.path[i];
+                        if (i < result.path.size() - 1) pathStr += " -> ";
+                    }
+                    
+                    // Split long path into multiple lines if needed
+                    if (pathStr.length() > BOX_WIDTH - 4) {
+                        size_t pos = 0;
+                        while (pos < pathStr.length()) {
+                            size_t lineLen = std::min(pathStr.length() - pos, (size_t)(BOX_WIDTH - 4));
+                            cout << boxLine(pathStr.substr(pos, lineLen));
+                            pos += lineLen;
+                        }
+                    } else {
+                        cout << boxLine(pathStr);
+                    }
+                    
+                    cout << boxLine(" ");
+                    cout << boxLine(CYAN "Thời gian: " + to_string((int)result.travelTime) + " đơn vị" RESET);
+                    cout << boxBottom();
+                    cout << "\n";
+                }
             }
             system("pause");
             clearInputBuffer();
