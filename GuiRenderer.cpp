@@ -4,8 +4,7 @@
 #include <algorithm>
 
 GuiRenderer::GuiRenderer()
-    : window(nullptr), renderer(nullptr), font(nullptr), titleFont(nullptr),
-      windowWidth(0), windowHeight(0) {
+    : windowWidth(0), windowHeight(0) {
 }
 
 GuiRenderer::~GuiRenderer() {
@@ -16,49 +15,57 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
     windowWidth = width;
     windowHeight = height;
     
-    // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+    // Create SFML window
+    window.create(sf::VideoMode(width, height), title, sf::Style::Titlebar | sf::Style::Close);
+    if (!window.isOpen()) {
+        std::cerr << "Window could not be created!" << std::endl;
         return false;
     }
     
-    // Initialize SDL_ttf
-    if (TTF_Init() < 0) {
-        std::cerr << "SDL_ttf could not initialize! TTF_Error: " << TTF_GetError() << std::endl;
-        return false;
+    // Set framerate limit
+    window.setFramerateLimit(60);
+    
+    // Load fonts - try to use a default system font
+    bool fontLoaded = false;
+    
+    // Try DejaVu Sans first (common on Linux)
+    if (font.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) {
+        fontLoaded = true;
+    }
+    // Try Liberation Sans (alternative on Linux)
+    else if (font.loadFromFile("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")) {
+        fontLoaded = true;
+    }
+    // Try FreeSans (another common Linux font)
+    else if (font.loadFromFile("/usr/share/fonts/truetype/freefont/FreeSans.ttf")) {
+        fontLoaded = true;
+    }
+    // Try Windows fonts
+    else if (font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+        fontLoaded = true;
     }
     
-    // Create window
-    window = SDL_CreateWindow(title.c_str(),
-                             SDL_WINDOWPOS_CENTERED,
-                             SDL_WINDOWPOS_CENTERED,
-                             width, height,
-                             SDL_WINDOW_SHOWN);
-    if (!window) {
-        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        return false;
+    if (!fontLoaded) {
+        std::cerr << "Failed to load font! Text will not be rendered." << std::endl;
+        std::cerr << "Continuing without font support." << std::endl;
     }
     
-    // Create renderer
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!renderer) {
-        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        return false;
+    // Try to load bold font for titles
+    bool titleFontLoaded = false;
+    if (titleFont.loadFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")) {
+        titleFontLoaded = true;
+    }
+    else if (titleFont.loadFromFile("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf")) {
+        titleFontLoaded = true;
+    }
+    else if (titleFont.loadFromFile("/usr/share/fonts/truetype/freefont/FreeSansBold.ttf")) {
+        titleFontLoaded = true;
+    }
+    else if (titleFont.loadFromFile("C:/Windows/Fonts/arialbd.ttf")) {
+        titleFontLoaded = true;
     }
     
-    // Load fonts - try to use a default system font, fall back to SDL's built-in if needed
-    font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18);
-    if (!font) {
-        // Try alternative font path
-        font = TTF_OpenFont("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 18);
-        if (!font) {
-            std::cerr << "Failed to load font! TTF_Error: " << TTF_GetError() << std::endl;
-            std::cerr << "Continuing without font support (text will not be rendered)" << std::endl;
-        }
-    }
-    
-    titleFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24);
-    if (!titleFont && font) {
+    if (!titleFontLoaded && fontLoaded) {
         titleFont = font; // Use regular font if bold is not available
     }
     
@@ -66,28 +73,13 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
 }
 
 void GuiRenderer::cleanup() {
-    if (font) {
-        TTF_CloseFont(font);
-        font = nullptr;
+    if (window.isOpen()) {
+        window.close();
     }
-    if (titleFont && titleFont != font) {
-        TTF_CloseFont(titleFont);
-        titleFont = nullptr;
-    }
-    if (renderer) {
-        SDL_DestroyRenderer(renderer);
-        renderer = nullptr;
-    }
-    if (window) {
-        SDL_DestroyWindow(window);
-        window = nullptr;
-    }
-    TTF_Quit();
-    SDL_Quit();
 }
 
-bool GuiRenderer::pollEvent(SDL_Event& event) {
-    return SDL_PollEvent(&event) != 0;
+bool GuiRenderer::pollEvent(sf::Event& event) {
+    return window.pollEvent(event);
 }
 
 void GuiRenderer::handleMouseMotion(int x, int y) {
@@ -106,106 +98,103 @@ int GuiRenderer::handleMouseClick(int x, int y) {
 }
 
 void GuiRenderer::clear(const Color& color) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-    SDL_RenderClear(renderer);
+    window.clear(color.toSFColor());
 }
 
 void GuiRenderer::present() {
-    SDL_RenderPresent(renderer);
+    window.display();
 }
 
 void GuiRenderer::drawText(const std::string& text, int x, int y, const Color& color, int fontSize) {
-    (void)fontSize;  // fontSize not currently used, font size is fixed at initialization
-    if (!font) return;
+    // Create SFML text object
+    sf::Text sfText;
+    sfText.setFont(font);
+    sfText.setString(text);
+    sfText.setCharacterSize(fontSize);
+    sfText.setFillColor(color.toSFColor());
+    sfText.setPosition(static_cast<float>(x), static_cast<float>(y));
     
-    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), sdlColor);
-    if (!surface) {
-        return;
-    }
-    
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (!texture) {
-        SDL_FreeSurface(surface);
-        return;
-    }
-    
-    SDL_Rect rect = {x, y, surface->w, surface->h};
-    SDL_RenderCopy(renderer, texture, nullptr, &rect);
-    
-    SDL_DestroyTexture(texture);
-    SDL_FreeSurface(surface);
+    window.draw(sfText);
 }
 
 void GuiRenderer::drawRect(int x, int y, int w, int h, const Color& color, bool filled) {
-    SDL_Rect rect = {x, y, w, h};
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    sf::RectangleShape rect(sf::Vector2f(static_cast<float>(w), static_cast<float>(h)));
+    rect.setPosition(static_cast<float>(x), static_cast<float>(y));
+    
     if (filled) {
-        SDL_RenderFillRect(renderer, &rect);
+        rect.setFillColor(color.toSFColor());
     } else {
-        SDL_RenderDrawRect(renderer, &rect);
+        rect.setFillColor(sf::Color::Transparent);
+        rect.setOutlineColor(color.toSFColor());
+        rect.setOutlineThickness(1.0f);
     }
+    
+    window.draw(rect);
 }
 
 void GuiRenderer::drawLine(int x1, int y1, int x2, int y2, const Color& color, int thickness) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    sf::Vertex line[] = {
+        sf::Vertex(sf::Vector2f(static_cast<float>(x1), static_cast<float>(y1)), color.toSFColor()),
+        sf::Vertex(sf::Vector2f(static_cast<float>(x2), static_cast<float>(y2)), color.toSFColor())
+    };
     
     if (thickness <= 1) {
-        SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+        window.draw(line, 2, sf::Lines);
     } else {
-        // Draw thick line by drawing multiple lines
-        double angle = std::atan2(y2 - y1, x2 - x1);
-        double perpAngle = angle + M_PI / 2.0;
+        // For thick lines, draw a rectangle rotated along the line
+        float length = std::sqrt(static_cast<float>((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)));
+        float angle = std::atan2(static_cast<float>(y2-y1), static_cast<float>(x2-x1)) * 180.0f / 3.14159265f;
         
-        for (int i = -(thickness/2); i <= thickness/2; i++) {
-            int offsetX = static_cast<int>(i * std::cos(perpAngle));
-            int offsetY = static_cast<int>(i * std::sin(perpAngle));
-            SDL_RenderDrawLine(renderer, x1 + offsetX, y1 + offsetY, 
-                             x2 + offsetX, y2 + offsetY);
-        }
+        sf::RectangleShape thickLine(sf::Vector2f(length, static_cast<float>(thickness)));
+        thickLine.setPosition(static_cast<float>(x1), static_cast<float>(y1));
+        thickLine.setRotation(angle);
+        thickLine.setFillColor(color.toSFColor());
+        
+        window.draw(thickLine);
     }
 }
 
 void GuiRenderer::drawCircle(int cx, int cy, int radius, const Color& color, bool filled) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    sf::CircleShape circle(static_cast<float>(radius));
+    circle.setPosition(static_cast<float>(cx - radius), static_cast<float>(cy - radius));
     
-    for (int w = 0; w < radius * 2; w++) {
-        for (int h = 0; h < radius * 2; h++) {
-            int dx = radius - w;
-            int dy = radius - h;
-            if ((dx*dx + dy*dy) <= (radius * radius)) {
-                if (filled || std::abs(std::sqrt(dx*dx + dy*dy) - radius) < 1.5) {
-                    SDL_RenderDrawPoint(renderer, cx + dx, cy + dy);
-                }
-            }
-        }
+    if (filled) {
+        circle.setFillColor(color.toSFColor());
+    } else {
+        circle.setFillColor(sf::Color::Transparent);
+        circle.setOutlineColor(color.toSFColor());
+        circle.setOutlineThickness(1.5f);
     }
+    
+    window.draw(circle);
 }
 
 void GuiRenderer::drawButton(const Button& button) {
     // Draw button background
     Color bgColor = button.hovered ? Color(70, 130, 180) : Color(50, 100, 150);
-    drawRect(button.rect.x, button.rect.y, button.rect.w, button.rect.h, bgColor, true);
+    drawRect(static_cast<int>(button.rect.left), static_cast<int>(button.rect.top), 
+             static_cast<int>(button.rect.width), static_cast<int>(button.rect.height), 
+             bgColor, true);
     
     // Draw button border
-    drawRect(button.rect.x, button.rect.y, button.rect.w, button.rect.h, Color(200, 200, 200), false);
+    drawRect(static_cast<int>(button.rect.left), static_cast<int>(button.rect.top), 
+             static_cast<int>(button.rect.width), static_cast<int>(button.rect.height), 
+             Color(200, 200, 200), false);
     
     // Draw button text (centered)
-    if (font) {
-        SDL_Color white = {255, 255, 255, 255};
-        SDL_Surface* surface = TTF_RenderUTF8_Blended(font, button.label.c_str(), white);
-        if (surface) {
-            SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-            if (texture) {
-                int textX = button.rect.x + (button.rect.w - surface->w) / 2;
-                int textY = button.rect.y + (button.rect.h - surface->h) / 2;
-                SDL_Rect textRect = {textX, textY, surface->w, surface->h};
-                SDL_RenderCopy(renderer, texture, nullptr, &textRect);
-                SDL_DestroyTexture(texture);
-            }
-            SDL_FreeSurface(surface);
-        }
-    }
+    sf::Text text;
+    text.setFont(font);
+    text.setString(button.label);
+    text.setCharacterSize(18);
+    text.setFillColor(sf::Color::White);
+    
+    sf::FloatRect textBounds = text.getLocalBounds();
+    text.setPosition(
+        button.rect.left + (button.rect.width - textBounds.width) / 2.0f - textBounds.left,
+        button.rect.top + (button.rect.height - textBounds.height) / 2.0f - textBounds.top
+    );
+    
+    window.draw(text);
 }
 
 void GuiRenderer::addButton(const Button& button) {
@@ -325,25 +314,16 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
 }
 
 void GuiRenderer::drawTitle(const std::string& title) {
-    if (!titleFont) return;
+    sf::Text text;
+    text.setFont(titleFont);
+    text.setString(title);
+    text.setCharacterSize(24);
+    text.setFillColor(sf::Color::White);
     
-    SDL_Color white = {255, 255, 255, 255};
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(titleFont, title.c_str(), white);
-    if (!surface) return;
+    sf::FloatRect textBounds = text.getLocalBounds();
+    text.setPosition((windowWidth - textBounds.width) / 2.0f - textBounds.left, 20.0f);
     
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (!texture) {
-        SDL_FreeSurface(surface);
-        return;
-    }
-    
-    int x = (windowWidth - surface->w) / 2;
-    int y = 20;
-    SDL_Rect rect = {x, y, surface->w, surface->h};
-    SDL_RenderCopy(renderer, texture, nullptr, &rect);
-    
-    SDL_DestroyTexture(texture);
-    SDL_FreeSurface(surface);
+    window.draw(text);
 }
 
 void GuiRenderer::drawPanel(int x, int y, int w, int h, const std::string& title) {

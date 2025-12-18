@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <SDL2/SDL.h>
+#include <SFML/Graphics.hpp>
 
 #include "RoadMap.h"
 #include "ShortestPath.h"
@@ -27,24 +27,40 @@ string showInputDialog(GuiRenderer& gui, const string& prompt) {
     bool done = false;
     
     while (!done) {
-        SDL_Event event;
+        sf::Event event;
         while (gui.pollEvent(event)) {
-            if (event.type == SDL_QUIT) {
+            if (event.type == sf::Event::Closed) {
                 return "";
             }
             
-            if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.sym == SDLK_RETURN || event.key.keysym.sym == SDLK_KP_ENTER) {
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Return || event.key.code == sf::Keyboard::Enter) {
                     done = true;
-                } else if (event.key.keysym.sym == SDLK_BACKSPACE && input.length() > 0) {
+                } else if (event.key.code == sf::Keyboard::Backspace && input.length() > 0) {
                     input.pop_back();
-                } else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                } else if (event.key.code == sf::Keyboard::Escape) {
                     return "";
                 }
             }
             
-            if (event.type == SDL_TEXTINPUT) {
-                input += event.text.text;
+            if (event.type == sf::Event::TextEntered) {
+                // Only add printable characters
+                if (event.text.unicode < 128 && event.text.unicode >= 32) {
+                    input += static_cast<char>(event.text.unicode);
+                } else if (event.text.unicode >= 128) {
+                    // Handle UTF-8 characters for Vietnamese support
+                    sf::Uint32 unicode = event.text.unicode;
+                    if (unicode < 0x80) {
+                        input += static_cast<char>(unicode);
+                    } else if (unicode < 0x800) {
+                        input += static_cast<char>((unicode >> 6) | 0xC0);
+                        input += static_cast<char>((unicode & 0x3F) | 0x80);
+                    } else if (unicode < 0x10000) {
+                        input += static_cast<char>((unicode >> 12) | 0xE0);
+                        input += static_cast<char>(((unicode >> 6) & 0x3F) | 0x80);
+                        input += static_cast<char>((unicode & 0x3F) | 0x80);
+                    }
+                }
             }
         }
         
@@ -57,7 +73,6 @@ string showInputDialog(GuiRenderer& gui, const string& prompt) {
         gui.drawText("Press ENTER to confirm, ESC to cancel", 220, 350, Color(150, 150, 150));
         
         gui.present();
-        SDL_Delay(16);  // ~60 FPS
     }
     
     return input;
@@ -67,13 +82,13 @@ void showMessageDialog(GuiRenderer& gui, const string& title, const vector<strin
     bool done = false;
     
     while (!done) {
-        SDL_Event event;
+        sf::Event event;
         while (gui.pollEvent(event)) {
-            if (event.type == SDL_QUIT) {
+            if (event.type == sf::Event::Closed) {
                 return;
             }
             
-            if (event.type == SDL_KEYDOWN || event.type == SDL_MOUSEBUTTONDOWN) {
+            if (event.type == sf::Event::KeyPressed || event.type == sf::Event::MouseButtonPressed) {
                 done = true;
             }
         }
@@ -92,7 +107,6 @@ void showMessageDialog(GuiRenderer& gui, const string& title, const vector<strin
         gui.drawText("Press any key or click to continue", 170, y + 20, Color(150, 150, 150));
         
         gui.present();
-        SDL_Delay(16);
     }
 }
 
@@ -161,12 +175,12 @@ void handleShortestPath(GuiRenderer& gui, RoadMap& map) {
         // Show result with visualization
         bool done = false;
         while (!done) {
-            SDL_Event event;
+            sf::Event event;
             while (gui.pollEvent(event)) {
-                if (event.type == SDL_QUIT) {
+                if (event.type == sf::Event::Closed) {
                     return;
                 }
-                if (event.type == SDL_KEYDOWN || event.type == SDL_MOUSEBUTTONDOWN) {
+                if (event.type == sf::Event::KeyPressed || event.type == sf::Event::MouseButtonPressed) {
                     done = true;
                 }
             }
@@ -203,7 +217,6 @@ void handleShortestPath(GuiRenderer& gui, RoadMap& map) {
             gui.drawText("Press any key to continue", 590, 520, Color(150, 150, 150));
             
             gui.present();
-            SDL_Delay(16);
         }
     }
 }
@@ -307,25 +320,22 @@ int main(int argc, char* argv[]) {
     bool quit = false;
     MenuState state = MENU_MAIN;
     
-    // Enable text input
-    SDL_StartTextInput();
-    
     while (!quit) {
-        SDL_Event event;
+        sf::Event event;
         
         // Handle events
         while (gui.pollEvent(event)) {
-            if (event.type == SDL_QUIT) {
+            if (event.type == sf::Event::Closed) {
                 quit = true;
             }
             
             if (state == MENU_MAIN) {
-                if (event.type == SDL_MOUSEMOTION) {
-                    gui.handleMouseMotion(event.motion.x, event.motion.y);
+                if (event.type == sf::Event::MouseMoved) {
+                    gui.handleMouseMotion(event.mouseMove.x, event.mouseMove.y);
                 }
                 
-                if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-                    int buttonId = gui.handleMouseClick(event.button.x, event.button.y);
+                if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                    int buttonId = gui.handleMouseClick(event.mouseButton.x, event.mouseButton.y);
                     
                     switch (buttonId) {
                         case 1:
@@ -352,11 +362,7 @@ int main(int argc, char* argv[]) {
         if (state == MENU_MAIN) {
             drawMainMenu(gui, map);
         }
-        
-        SDL_Delay(16);  // ~60 FPS
     }
-    
-    SDL_StopTextInput();
     
     return 0;
 }

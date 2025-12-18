@@ -2,7 +2,7 @@
 
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra
-LIBS_GUI = -lSDL2 -lSDL2_ttf
+LIBS_GUI = -lsfml-graphics -lsfml-window -lsfml-system
 
 # Source files
 COMMON_SRCS = RoadMap.cpp ShortestPath.cpp AlternativeRoute.cpp TrafficOptimization.cpp
