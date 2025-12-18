@@ -96,8 +96,12 @@
 
 Các thay đổi đã được:
 - ✅ Kiểm tra syntax với g++ compiler
-- ✅ Review code logic
+- ✅ Review code logic nhiều lần
 - ✅ Kiểm tra encoding UTF-8
+- ✅ Kiểm tra UTF-8 truncation: "Xin chào Việt Nam" → "Xin chào V" (10 chars)
+- ✅ Xử lý tất cả feedback từ code review
+- ✅ Thêm boundary validation và infinite loop protection
+- ✅ CodeQL security scan (không phát hiện vấn đề)
 - ⏳ Cần kiểm tra runtime trên Windows (do sử dụng Windows API)
 
 ## Ghi chú / Notes
