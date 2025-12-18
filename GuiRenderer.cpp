@@ -232,6 +232,12 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
         return;
     }
     
+    // Constants for map panel centering
+    const int MAP_PANEL_WIDTH = 420;
+    const int MAP_PANEL_HEIGHT = 380;
+    const int MAP_CENTER_OFFSET_X = MAP_PANEL_WIDTH / 2;  // 210
+    const int MAP_CENTER_OFFSET_Y = MAP_PANEL_HEIGHT / 2; // 190
+    
     // Tính toán bounding box tự động
     double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
     for (const auto& nodeId : nodeIds) {
@@ -244,10 +250,10 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
         }
     }
     
-    // Tính scale tự động để vừa với panel (420x380 pixel)
+    // Tính scale tự động để vừa với panel
     double latRange = maxLat - minLat;
     double lonRange = maxLon - minLon;
-    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double autoScale = std::min(MAP_PANEL_HEIGHT / (latRange * 1000), MAP_PANEL_WIDTH / (lonRange * 1000)) * 0.9;
     double centerLat = (minLat + maxLat) / 2.0;
     double centerLon = (minLon + maxLon) / 2.0;
     
@@ -258,10 +264,10 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
             auto dstNode = map.getNodeById(edge.dst);
             
             if (srcNode && dstNode) {
-                int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-                int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
-                int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-                int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
+                int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+                int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
+                int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+                int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
                 
                 Color edgeColor(100, 100, 100);
                 if (edge.flow > edge.capacity * 0.9) {
@@ -281,8 +287,8 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
     for (const auto& nodeId : nodeIds) {
         auto node = map.getNodeById(nodeId);
         if (node) {
-            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
             
             drawCircle(x, y, 6, Color(70, 130, 180), true);
             drawCircle(x, y, 6, Color(255, 255, 255), false);
@@ -308,6 +314,12 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
                                 int offsetX, int offsetY, double scale) {
     if (path.size() < 2) return;
     
+    // Constants for map panel centering (must match drawMap)
+    const int MAP_PANEL_WIDTH = 420;
+    const int MAP_PANEL_HEIGHT = 380;
+    const int MAP_CENTER_OFFSET_X = MAP_PANEL_WIDTH / 2;  // 210
+    const int MAP_CENTER_OFFSET_Y = MAP_PANEL_HEIGHT / 2; // 190
+    
     // Calculate the same bounding box and center as drawMap for consistency
     auto nodeIds = map.getNodeIds();
     double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
@@ -323,7 +335,7 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
     
     double latRange = maxLat - minLat;
     double lonRange = maxLon - minLon;
-    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double autoScale = std::min(MAP_PANEL_HEIGHT / (latRange * 1000), MAP_PANEL_WIDTH / (lonRange * 1000)) * 0.9;
     double centerLat = (minLat + maxLat) / 2.0;
     double centerLon = (minLon + maxLon) / 2.0;
     
@@ -333,10 +345,10 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
         auto dstNode = map.getNodeById(path[i+1]);
         
         if (srcNode && dstNode) {
-            int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-            int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
-            int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-            int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
+            int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+            int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
+            int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+            int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
             
             // Draw thicker yellow line for the path
             drawLine(x1, y1, x2, y2, Color(255, 215, 0), 6);  // Brighter yellow, thicker
@@ -347,8 +359,8 @@ void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& pa
     for (const auto& nodeId : path) {
         auto node = map.getNodeById(nodeId);
         if (node) {
-            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
-            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + MAP_CENTER_OFFSET_X;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + MAP_CENTER_OFFSET_Y;
             
             drawCircle(x, y, 10, Color(255, 215, 0), true);  // Filled yellow circle
             drawCircle(x, y, 10, Color(255, 255, 255), false);  // White outline

@@ -42,21 +42,30 @@ string utf8_truncate(const string& str, size_t maxDisplayWidth) {
             continue;
         }
         
-        // Count UTF-8 character and advance i
+        // Determine UTF-8 character length and validate boundaries
+        size_t charLen = 1;
         if (c < 0x80) {
-            i += 1;
+            charLen = 1;
         } else if ((c & 0xE0) == 0xC0) {
-            i += 2;
+            charLen = 2;
         } else if ((c & 0xF0) == 0xE0) {
-            i += 3;
+            charLen = 3;
         } else if ((c & 0xF8) == 0xF0) {
-            i += 4;
+            charLen = 4;
         } else {
-            i += 1;
+            // Invalid UTF-8 start byte, skip it
+            i++;
+            continue;
         }
         
+        // Check if we have enough bytes for this character
+        if (i + charLen > str.length()) {
+            break;  // Incomplete character at end of string
+        }
+        
+        i += charLen;
         width++;
-        bytePos = i;  // Update byte position after successfully reading a character
+        bytePos = i;
     }
     
     return str.substr(0, bytePos);
@@ -67,17 +76,28 @@ size_t utf8_length(const string& str) {
     size_t count = 0;
     for (size_t i = 0; i < str.length(); ) {
         unsigned char c = str[i];
+        size_t charLen = 1;
+        
         if (c < 0x80) {
-            i += 1;  // ASCII character (1 byte)
+            charLen = 1;
         } else if ((c & 0xE0) == 0xC0) {
-            i += 2;  // 2-byte UTF-8 character
+            charLen = 2;
         } else if ((c & 0xF0) == 0xE0) {
-            i += 3;  // 3-byte UTF-8 character
+            charLen = 3;
         } else if ((c & 0xF8) == 0xF0) {
-            i += 4;  // 4-byte UTF-8 character
+            charLen = 4;
         } else {
-            i += 1;  // Invalid UTF-8, skip 1 byte
+            // Invalid UTF-8 start byte
+            i++;
+            continue;
         }
+        
+        // Check boundary
+        if (i + charLen > str.length()) {
+            break;  // Incomplete character
+        }
+        
+        i += charLen;
         count++;
     }
     return count;
@@ -99,17 +119,28 @@ size_t display_width(const string& str) {
             i++;
         } else {
             unsigned char c = str[i];
+            size_t charLen = 1;
+            
             if (c < 0x80) {
-                i += 1;
+                charLen = 1;
             } else if ((c & 0xE0) == 0xC0) {
-                i += 2;
+                charLen = 2;
             } else if ((c & 0xF0) == 0xE0) {
-                i += 3;
+                charLen = 3;
             } else if ((c & 0xF8) == 0xF0) {
-                i += 4;
+                charLen = 4;
             } else {
-                i += 1;
+                // Invalid UTF-8, skip
+                i++;
+                continue;
             }
+            
+            // Check boundary
+            if (i + charLen > str.length()) {
+                break;
+            }
+            
+            i += charLen;
             width++;
         }
     }
@@ -347,13 +378,20 @@ int main() {
                         if (i < path.size() - 1) pathStr += " -> ";
                     }
                     
-                    // Split long path into multiple lines if needed
-                    if (pathStr.length() > BOX_WIDTH - 4) {
-                        size_t pos = 0;
-                        while (pos < pathStr.length()) {
-                            size_t lineLen = std::min(pathStr.length() - pos, (size_t)(BOX_WIDTH - 4));
-                            cout << boxLine(pathStr.substr(pos, lineLen));
-                            pos += lineLen;
+                    // Split long path into multiple lines if needed (UTF-8 aware)
+                    size_t displayLen = display_width(pathStr);
+                    if (displayLen > (size_t)(BOX_WIDTH - 4)) {
+                        // Display in chunks using UTF-8 aware truncation
+                        string remaining = pathStr;
+                        while (display_width(remaining) > 0) {
+                            string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
+                            cout << boxLine(chunk);
+                            
+                            // Remove displayed chunk from remaining string
+                            if (chunk.length() >= remaining.length()) {
+                                break;
+                            }
+                            remaining = remaining.substr(chunk.length());
                         }
                     } else {
                         cout << boxLine(pathStr);
@@ -419,13 +457,20 @@ int main() {
                         if (i < result.path.size() - 1) pathStr += " -> ";
                     }
                     
-                    // Split long path into multiple lines if needed
-                    if (pathStr.length() > BOX_WIDTH - 4) {
-                        size_t pos = 0;
-                        while (pos < pathStr.length()) {
-                            size_t lineLen = std::min(pathStr.length() - pos, (size_t)(BOX_WIDTH - 4));
-                            cout << boxLine(pathStr.substr(pos, lineLen));
-                            pos += lineLen;
+                    // Split long path into multiple lines if needed (UTF-8 aware)
+                    size_t displayLen = display_width(pathStr);
+                    if (displayLen > (size_t)(BOX_WIDTH - 4)) {
+                        // Display in chunks using UTF-8 aware truncation
+                        string remaining = pathStr;
+                        while (display_width(remaining) > 0) {
+                            string chunk = utf8_truncate(remaining, BOX_WIDTH - 4);
+                            cout << boxLine(chunk);
+                            
+                            // Remove displayed chunk from remaining string
+                            if (chunk.length() >= remaining.length()) {
+                                break;
+                            }
+                            remaining = remaining.substr(chunk.length());
                         }
                     } else {
                         cout << boxLine(pathStr);
