@@ -610,3 +610,82 @@ void TrafficOptimization::displayCongestedRoadsList(const std::vector<Congestion
         cout << "\n";
     }
 }
+
+std::vector<CongestionInfo> TrafficOptimization::getCongestedRoads() {
+    return detectCongestedRoads();
+}
+
+TrafficOptimizationResult TrafficOptimization::analyzeCongestedRoad(const std::string& edgeId, double budget) {
+    TrafficOptimizationResult result;
+    result.hasCongestedRoads = false;
+    result.hasProposal = false;
+    result.budget = budget;
+    result.minBudgetNeeded = 0;
+    
+    // Kiểm tra edge có tồn tại không
+    if (!map_.hasEdge(edgeId)) {
+        return result;
+    }
+    
+    // Lấy thông tin edge
+    auto edgePtr = map_.getEdgeById(edgeId);
+    if (!edgePtr) {
+        return result;
+    }
+    
+    result.congestedEdge = *edgePtr;
+    result.hasCongestedRoads = true;
+    
+    // Tìm các phương án
+    auto proposals = findPotentialNewRoads(result.congestedEdge, budget);
+    
+    if (proposals.empty()) {
+        // Tính ngân sách tối thiểu
+        result.minBudgetNeeded = estimateMinimumBudget(result.congestedEdge);
+        result.hasProposal = false;
+        
+        // Lấy giải pháp không cần ngân sách
+        result.trafficSignalSolutions = getTrafficSignalSolutions(result. congestedEdge);
+    } else {
+        // Chọn phương án tốt nhất
+        result.bestProposal = selectBestProposal(proposals);
+        result.hasProposal = true;
+    }
+    
+    return result;
+}
+
+std::vector<std::string> TrafficOptimization::getTrafficSignalSolutions(const Edge& congestedEdge) {
+    std::vector<std::string> solutions;
+    
+    solutions.push_back("1. Điều chỉnh thời gian đèn tín hiệu:");
+    solutions.push_back("   - Tăng thời gian đèn xanh cho hướng " + congestedEdge.src + " → " + congestedEdge.dst);
+    
+    if (congestedEdge.capacity > 0) {
+        double congestionRatio = congestedEdge.flow / congestedEdge.capacity;
+        int recommendedGreenTime = (int)(60 * congestionRatio * 1.2);  // DEFAULT_GREEN_LIGHT_TIME = 60
+        
+        solutions.push_back("   - Thời gian đèn xanh đề xuất: " + std::to_string(recommendedGreenTime) + " giây (hiện tại: 60 giây)");
+    }
+    
+    solutions.push_back("");
+    solutions.push_back("2. Điều tiết luồng giao thông:");
+    solutions.push_back("   - Hạn chế xe tải nặng vào giờ cao điểm (7-9h và 17-19h)");
+    solutions.push_back("   - Khuyến khích phân làn theo loại phương tiện");
+    
+    solutions.push_back("");
+    solutions.push_back("3. Quản lý tốc độ:");
+    solutions.push_back("   - Tốc độ tối đa khuyến nghị: " + std::to_string((int)(congestedEdge.avgSpeed * 0.8)) + " km/h");
+    solutions.push_back("   - Đặt biển báo tốc độ điện tử thông minh");
+    
+    solutions.push_back("");
+    solutions.push_back("4. Giám sát và điều phối:");
+    solutions.push_back("   - Lắp đặt camera giám sát lưu lượng xe");
+    solutions.push_back("   - Triển khai hệ thống điều khiển tín hiệu thích ứng");
+    
+    solutions.push_back("");
+    solutions.push_back("Thời gian triển khai:  2-4 tuần");
+    solutions.push_back("Chi phí ước tính: 5-10 tỷ VNĐ");
+    
+    return solutions;
+}

@@ -47,17 +47,17 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
     }
     
     // Load fonts - try to use a default system font, fall back to SDL's built-in if needed
-    font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18);
+    font = TTF_OpenFont("assets/fonts/arial.ttf", 18);
     if (!font) {
         // Try alternative font path
-        font = TTF_OpenFont("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 18);
+        font = TTF_OpenFont("assets/fonts/arial.ttf", 18);
         if (!font) {
             std::cerr << "Failed to load font! TTF_Error: " << TTF_GetError() << std::endl;
             std::cerr << "Continuing without font support (text will not be rendered)" << std::endl;
         }
     }
     
-    titleFont = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24);
+    titleFont = TTF_OpenFont("assets/fonts/arial.ttf", 24);
     if (!titleFont && font) {
         titleFont = font; // Use regular font if bold is not available
     }
@@ -115,12 +115,13 @@ void GuiRenderer::present() {
 }
 
 void GuiRenderer::drawText(const std::string& text, int x, int y, const Color& color, int fontSize) {
-    (void)fontSize;  // fontSize not currently used, font size is fixed at initialization
-    if (!font) return;
+    (void)fontSize;
+    if (! font) return;
     
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
     SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), sdlColor);
     if (!surface) {
+        std::cerr << "Không thể render text: " << text << " - " << TTF_GetError() << std::endl;
         return;
     }
     
@@ -218,10 +219,8 @@ void GuiRenderer::clearButtons() {
 
 void GuiRenderer::latLonToScreen(double lat, double lon, int& x, int& y, 
                                  int offsetX, int offsetY, double scale) {
-    // Simple conversion: treat lat/lon as cartesian coordinates
-    // Scale and offset to fit in window
     x = static_cast<int>((lon - DEFAULT_CENTER_LON) * scale * 1000) + offsetX;
-    y = static_cast<int>((DEFAULT_CENTER_LAT - lat) * scale * 1000) + offsetY;  // Inverted Y axis
+    y = static_cast<int>((DEFAULT_CENTER_LAT - lat) * scale * 1000) + offsetY;
 }
 
 void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) {
@@ -229,53 +228,65 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
     auto edges = map.getEdges();
     
     if (nodeIds.empty()) {
-        drawText("Ban do trong", offsetX + 150, offsetY + 100, Color(150, 150, 150));
+        drawText("Bản đồ trống", offsetX + 150, offsetY + 100, Color(150, 150, 150));
         return;
     }
     
-    // Draw edges first (so they appear behind nodes)
-    for (const auto& edge : edges) {
-        if (!edge.isReverse) {  // Only draw original edges, not reverse
+    // Tính toán bounding box tự động
+    double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
+    for (const auto& nodeId : nodeIds) {
+        auto node = map.getNodeById(nodeId);
+        if (node) {
+            minLat = std::min(minLat, node->lat);
+            maxLat = std::max(maxLat, node->lat);
+            minLon = std::min(minLon, node->lon);
+            maxLon = std::max(maxLon, node->lon);
+        }
+    }
+    
+    // Tính scale tự động để vừa với panel (420x380 pixel)
+    double latRange = maxLat - minLat;
+    double lonRange = maxLon - minLon;
+    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double centerLat = (minLat + maxLat) / 2.0;
+    double centerLon = (minLon + maxLon) / 2.0;
+    
+    // Vẽ edges
+    for (const auto& edge :  edges) {
+        if (! edge.isReverse) {
             auto srcNode = map.getNodeById(edge.src);
             auto dstNode = map.getNodeById(edge.dst);
             
             if (srcNode && dstNode) {
-                int x1, y1, x2, y2;
-                latLonToScreen(srcNode->lat, srcNode->lon, x1, y1, offsetX, offsetY, scale);
-                latLonToScreen(dstNode->lat, dstNode->lon, x2, y2, offsetX, offsetY, scale);
+                int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+                int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
+                int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+                int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
                 
-                // Color based on traffic flow
                 Color edgeColor(100, 100, 100);
                 if (edge.flow > edge.capacity * 0.9) {
-                    edgeColor = Color(200, 50, 50);  // Red for congested
+                    edgeColor = Color(200, 50, 50);
                 } else if (edge.flow > edge.capacity * 0.7) {
-                    edgeColor = Color(200, 150, 50); // Orange for busy
+                    edgeColor = Color(200, 150, 50);
                 } else {
-                    edgeColor = Color(50, 150, 50);  // Green for clear
+                    edgeColor = Color(50, 150, 50);
                 }
                 
-                drawLine(x1, y1, x2, y2, edgeColor, 3);
-                
-                // Draw edge label at midpoint
-                int midX = (x1 + x2) / 2;
-                int midY = (y1 + y2) / 2;
-                drawText(edge.id, midX + 5, midY - 10, Color(180, 180, 180), 14);
+                drawLine(x1, y1, x2, y2, edgeColor, 2);
             }
         }
     }
     
-    // Draw nodes on top
+    // Vẽ nodes
     for (const auto& nodeId : nodeIds) {
         auto node = map.getNodeById(nodeId);
         if (node) {
-            int x, y;
-            latLonToScreen(node->lat, node->lon, x, y, offsetX, offsetY, scale);
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawCircle(x, y, 8, Color(70, 130, 180), true);
-            drawCircle(x, y, 8, Color(255, 255, 255), false);
-            
-            // Draw node label
-            drawText(nodeId, x + 12, y - 5, Color(255, 255, 255));
+            drawCircle(x, y, 6, Color(70, 130, 180), true);
+            drawCircle(x, y, 6, Color(255, 255, 255), false);
+            drawText(nodeId, x + 10, y - 5, Color(255, 255, 255));
         }
     }
 }

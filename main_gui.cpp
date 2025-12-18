@@ -1,4 +1,5 @@
 // main_gui.cpp - GUI version of the traffic map application
+#define SDL_MAIN_HANDLED
 #include <iostream>
 #include <string>
 #include <vector>
@@ -231,35 +232,280 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
         return;
     }
     
-    // Find alternative route
-    gui.clear(Color(40, 40, 50));
-    gui.drawText("Dang tim duong di thay the...", 400, 300, Color(255, 255, 255));
-    gui.present();
-    
+    // Find alternative route - SỬ DỤNG PHƯƠNG THỨC MỚI
     AlternativeRoute alt(map);
-    // Note: AlternativeRoute prints to console, we'd need to modify it to return data
-    // For now, just call it and show a message
-    alt.suggestAlternative(edgeId, start, goal);
+    auto result = alt.findAlternativeRoute(edgeId, start, goal);
     
-    showMessageDialog(gui, "Ket qua", {
-        "Da tim xong duong di thay the khi chan Edge " + edgeId,
-        "Ket qua hien thi trong console (terminal)."
-    });
+    if (! result.success) {
+        showMessageDialog(gui, "Khong tim thay duong", {
+            "Khong co tuyen duong thay the khi chan Edge " + edgeId,
+            result.errorMessage
+        });
+        return;
+    }
+    
+    // Hiển thị kết quả với visualization
+    bool done = false;
+    while (!done) {
+        SDL_Event event;
+        while (gui.pollEvent(event)) {
+            if (event.type == SDL_QUIT) {
+                return;
+            }
+            if (event.type == SDL_KEYDOWN || event.type == SDL_MOUSEBUTTONDOWN) {
+                done = true;
+            }
+        }
+        
+        gui.clear(Color(40, 40, 50));
+        
+        // Draw map with highlighted path
+        gui.drawPanel(50, 80, 500, 500, "Tuyen duong thay the");
+        gui.drawMap(map, 80, 120, 1.0);
+        gui.highlightPath(map, result.path, 80, 120, 1.0);
+        
+        // Draw result panel
+        gui.drawPanel(570, 80, 400, 500, "Ket qua");
+        gui.drawText("Edge bi chan: " + result.blockedEdgeId, 590, 120, Color(255, 100, 100));
+        
+        gui.drawText("Tuyen duong thay the:", 590, 160, Color(255, 255, 100));
+        
+        int y = 190;
+        string pathStr;
+        for (size_t i = 0; i < result.path.size(); i++) {
+            pathStr += result.path[i];
+            if (i < result. path.size() - 1) pathStr += " -> ";
+        }
+        
+        // Split long path into multiple lines
+        int charsPerLine = 30;
+        for (size_t i = 0; i < pathStr.length(); i += charsPerLine) {
+            string line = pathStr.substr(i, charsPerLine);
+            gui.drawText(line, 590, y, Color(255, 255, 255));
+            y += 25;
+        }
+        
+        gui.drawText("Thoi gian: " + to_string((int)result.travelTime) + " don vi", 
+                    590, y + 20, Color(100, 255, 100));
+        
+        gui.drawText("Nhan phim bat ky de tiep tuc", 590, 520, Color(150, 150, 150));
+        
+        gui.present();
+        SDL_Delay(16);
+    }
 }
 
 void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
-    gui.clear(Color(40, 40, 50));
-    gui.drawText("Dang chay phan tich toi uu hoa giao thong...", 300, 300, Color(255, 255, 255));
-    gui.present();
-    
     TrafficOptimization opt(map);
-    opt.optimizeTraffic();
     
-    showMessageDialog(gui, "Ket qua", {
-        "Da hoan thanh phan tich toi uu hoa giao thong.",
-        "Ket qua chi tiet hien thi trong console (terminal)."
-    });
+    // Lấy danh sách đường bị tắc
+    auto congestedRoads = opt.getCongestedRoads();
+    
+    if (congestedRoads.empty()) {
+        showMessageDialog(gui, "Thong bao", {
+            "Khong co tuyen duong nao bi qua tai! ",
+            "Tat ca cac tuyen duong dang hoat dong binh thuong."
+        });
+        return;
+    }
+    
+    // Hiển thị danh sách đường tắc
+    bool selectingRoad = true;
+    int selectedIndex = -1;
+    
+    while (selectingRoad) {
+        SDL_Event event;
+        while (gui.pollEvent(event)) {
+            if (event.type == SDL_QUIT) {
+                return;
+            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym. sym == SDLK_ESCAPE) {
+                return;
+            }
+        }
+        
+        gui.clear(Color(40, 40, 50));
+        gui.drawTitle("Cac tuyen duong bi un tac");
+        
+        int panelHeight = 100 + congestedRoads.size() * 80;
+        gui.drawPanel(100, 80, 800, panelHeight, "Chon tuyen duong de phan tich");
+        
+        int y = 120;
+        gui.clearButtons();
+        
+        for (size_t i = 0; i < congestedRoads. size(); i++) {
+            const auto& info = congestedRoads[i];
+            
+            string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ") - Qua tai: " + 
+                           to_string((int)info.overloadPercent) + "%";
+            gui.addButton(Button(120, y, 760, 60, btnText, i));
+            
+            y += 70;
+        }
+        
+        // Vẽ các nút
+        for (size_t i = 0; i < gui.buttons.size(); i++) {
+            gui.handleMouseMotion(0, 0);  // Reset hover
+            gui.drawButton(gui.buttons[i]);
+        }
+        
+        gui.present();
+        
+        // Xử lý click
+        while (gui.pollEvent(event)) {
+            if (event.type == SDL_MOUSEMOTION) {
+                gui.handleMouseMotion(event.motion. x, event.motion.y);
+            }
+            
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                int btnId = gui.handleMouseClick(event.button.x, event.button.y);
+                if (btnId >= 0 && btnId < (int)congestedRoads.size()) {
+                    selectedIndex = btnId;
+                    selectingRoad = false;
+                    break;
+                }
+            }
+        }
+        
+        SDL_Delay(16);
+    }
+    
+    if (selectedIndex < 0) return;
+    
+    // Nhập ngân sách
+    string budgetStr = showInputDialog(gui, "Nhap ngan sach (ty VND):");
+    if (budgetStr.empty()) return;
+    
+    double budget = 0;
+    try {
+        budget = stod(budgetStr);
+    } catch (...) {
+        showMessageDialog(gui, "Loi", {"Ngan sach khong hop le"});
+        return;
+    }
+    
+    // Phân tích
+    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex]. edgeId, budget);
+    
+    // Hiển thị kết quả
+    bool done = false;
+    int scrollOffset = 0;
+    
+    while (!done) {
+        SDL_Event event;
+        while (gui.pollEvent(event)) {
+            if (event.type == SDL_QUIT) {
+                return;
+            }
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_ESCAPE || 
+                    event.key. keysym.sym == SDLK_RETURN) {
+                    done = true;
+                }
+                if (event.key.keysym.sym == SDLK_UP) scrollOffset -= 20;
+                if (event.key.keysym.sym == SDLK_DOWN) scrollOffset += 20;
+            }
+            if (event.type == SDL_MOUSEBUTTONDOWN) {
+                done = true;
+            }
+        }
+        
+        gui.clear(Color(40, 40, 50));
+        gui.drawTitle("Ket qua phan tich toi uu hoa");
+        
+        gui.drawPanel(50, 80, 900, 500, "Giai phap de xuat");
+        
+        int y = 120 - scrollOffset;
+        
+        // Thông tin cơ bản
+        gui.drawText("Tuyen duong: " + result.congestedEdge.id, 70, y, Color(255, 255, 100));
+        y += 25;
+        gui.drawText("Chieu:  " + result.congestedEdge.src + " -> " + result.congestedEdge.dst, 
+                    70, y, Color(255, 255, 255));
+        y += 25;
+        gui.drawText("Luu luong: " + to_string((int)result.congestedEdge.flow) + " xe/gio", 
+                    70, y, Color(255, 255, 255));
+        y += 25;
+        gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
+                    70, y, Color(255, 255, 255));
+        y += 25;
+        gui. drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
+                    70, y, Color(100, 255, 100));
+        y += 40;
+        
+        if (result.hasProposal) {
+            // Có phương án
+            auto& proposal = result.bestProposal;
+            
+            gui.drawText("GIAI PHAP:", 70, y, Color(100, 255, 255));
+            y += 30;
+            
+            // Loại phương án
+            string typeStr;
+            if (proposal.type == ProposalType:: EXPAND_LANES) {
+                typeStr = "Mo rong lan duong";
+            } else if (proposal.type == ProposalType::DIRECT_BYPASS) {
+                typeStr = "Xay duong noi thang";
+            } else {
+                typeStr = "Xay tuyen duong moi";
+            }
+            gui.drawText("Loai: " + typeStr, 70, y, Color(255, 255, 255));
+            y += 25;
+            
+            gui.drawText("Chi phi: " + to_string((int)proposal.estimatedCost) + " ty VND", 
+                        70, y, Color(255, 255, 255));
+            y += 25;
+            
+            gui.drawText("Giam tai: " + to_string((int)proposal.trafficReduction) + " xe/gio", 
+                        70, y, Color(100, 255, 100));
+            y += 25;
+            
+            gui.drawText("Tiet kiem thoi gian: " + to_string((int)proposal.travelTimeSaved) + " phut", 
+                        70, y, Color(100, 255, 100));
+            y += 30;
+            
+            // Lý do - chia thành nhiều dòng
+            gui.drawText("LY DO:", 70, y, Color(255, 255, 100));
+            y += 25;
+            
+            string reasoning = proposal.reasoning;
+            int maxChars = 100;
+            for (size_t i = 0; i < reasoning.length(); i += maxChars) {
+                string line = reasoning.substr(i, maxChars);
+                gui. drawText(line, 70, y, Color(200, 200, 200));
+                y += 20;
+            }
+            
+        } else {
+            // Không có phương án trong ngân sách
+            gui.drawText("KHONG CO GIAI PHAP KHA THI", 70, y, Color(255, 100, 100));
+            y += 30;
+            
+            gui.drawText("Ngan sach toi thieu: " + to_string((int)result.minBudgetNeeded) + " ty VND", 
+                        70, y, Color(255, 255, 100));
+            y += 25;
+            
+            gui.drawText("Thieu hut: " + to_string((int)(result.minBudgetNeeded - budget)) + " ty VND", 
+                        70, y, Color(255, 100, 100));
+            y += 40;
+            
+            // Giải pháp thay thế
+            gui.drawText("GIAI PHAP THAY THE (khong can ngan sach):", 70, y, Color(100, 255, 255));
+            y += 25;
+            
+            for (const auto& sol : result.trafficSignalSolutions) {
+                gui.drawText(sol, 70, y, Color(200, 200, 200));
+                y += 20;
+            }
+        }
+        
+        gui.drawText("Nhan ESC hoac ENTER de dong, UP/DOWN de cuon", 70, 550, Color(150, 150, 150));
+        
+        gui.present();
+        SDL_Delay(16);
+    }
 }
+
 
 void handleLoadMap(GuiRenderer& gui, RoadMap& map) {
     string filename = showInputDialog(gui, "Nhap ten file ban do:");
