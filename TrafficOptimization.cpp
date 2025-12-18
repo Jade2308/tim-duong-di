@@ -50,6 +50,19 @@ void TrafficOptimization::optimizeTraffic() {
 
     cout << "Nhập ngân sách tối đa (tỷ VNĐ): ";
     cin >> budget;
+    
+    // Validate budget input
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "❌ Ngân sách không hợp lệ. Vui lòng nhập số.\n";
+        return;
+    }
+    
+    if (budget < 0) {
+        cout << "❌ Ngân sách không thể âm. Vui lòng nhập số dương.\n";
+        return;
+    }
 
     if (!map_.hasEdge(congestedEdgeId)) {
         cout << "❌ Tuyến đường không tồn tại.\n";

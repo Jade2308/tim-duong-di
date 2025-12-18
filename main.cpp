@@ -21,6 +21,60 @@ using namespace std;
 #define CYAN    "\033[36m"
 #define INVERT  "\033[7m"
 
+// Helper function to count UTF-8 characters (not bytes)
+size_t utf8_length(const string& str) {
+    size_t count = 0;
+    for (size_t i = 0; i < str.length(); ) {
+        unsigned char c = str[i];
+        if (c < 0x80) {
+            i += 1;  // ASCII character (1 byte)
+        } else if ((c & 0xE0) == 0xC0) {
+            i += 2;  // 2-byte UTF-8 character
+        } else if ((c & 0xF0) == 0xE0) {
+            i += 3;  // 3-byte UTF-8 character
+        } else if ((c & 0xF8) == 0xF0) {
+            i += 4;  // 4-byte UTF-8 character
+        } else {
+            i += 1;  // Invalid UTF-8, skip 1 byte
+        }
+        count++;
+    }
+    return count;
+}
+
+// Helper function to get display width (considering ANSI escape codes)
+size_t display_width(const string& str) {
+    size_t width = 0;
+    bool in_escape = false;
+    
+    for (size_t i = 0; i < str.length(); ) {
+        if (str[i] == '\033') {
+            in_escape = true;
+            i++;
+        } else if (in_escape && str[i] == 'm') {
+            in_escape = false;
+            i++;
+        } else if (in_escape) {
+            i++;
+        } else {
+            unsigned char c = str[i];
+            if (c < 0x80) {
+                i += 1;
+            } else if ((c & 0xE0) == 0xC0) {
+                i += 2;
+            } else if ((c & 0xF0) == 0xE0) {
+                i += 3;
+            } else if ((c & 0xF8) == 0xF0) {
+                i += 4;
+            } else {
+                i += 1;
+            }
+            width++;
+        }
+    }
+    return width;
+}
+
 // Initialize console for UTF-8 and ANSI (safe)
 void enableConsole() {
     SetConsoleOutputCP(CP_UTF8);
@@ -53,19 +107,33 @@ string boxBottom() {
 string boxLine(const string& content) {
     int inner = BOX_WIDTH - 2;
     string s = content;
-    if ((int)s.length() > inner) s = s.substr(0, inner);
-    int pad = inner - (int)s.length();
-    // Ensure pad - 1 is non-negative
+    size_t displayLen = display_width(s);
+    
+    if ((int)displayLen > inner) {
+        // Truncate string to fit (this is approximate)
+        size_t approxLen = (size_t)(s.length() * inner / displayLen);
+        s = s.substr(0, approxLen);
+        displayLen = display_width(s);
+    }
+    
+    int pad = inner - (int)displayLen;
     if (pad < 1) pad = 1;
     return "| " + s + string(pad - 1, ' ') + "|\n";
 }
 string boxCenter(const string& content) {
     int inner = BOX_WIDTH - 2;
     string s = content;
-    if ((int)s.length() > inner) s = s.substr(0, inner);
-    int left = (inner - (int)s.length()) / 2;
-    int right = inner - (int)s.length() - left;
-    // Ensure left and right - 1 are non-negative
+    size_t displayLen = display_width(s);
+    
+    if ((int)displayLen > inner) {
+        // Truncate string to fit
+        size_t approxLen = (size_t)(s.length() * inner / displayLen);
+        s = s.substr(0, approxLen);
+        displayLen = display_width(s);
+    }
+    
+    int left = (inner - (int)displayLen) / 2;
+    int right = inner - (int)displayLen - left;
     if (left < 0) left = 0;
     if (right < 1) right = 1;
     return "| " + string(left, ' ') + s + string(right - 1, ' ') + "|\n";
