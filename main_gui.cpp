@@ -34,7 +34,7 @@ string showInputDialog(GuiRenderer& gui, const string& prompt) {
             }
             
             if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Return || event.key.code == sf::Keyboard::Enter) {
+                if (event.key.code == sf::Keyboard::Enter) {
                     done = true;
                 } else if (event.key.code == sf::Keyboard::Backspace && input.length() > 0) {
                     input.pop_back();
@@ -44,15 +44,13 @@ string showInputDialog(GuiRenderer& gui, const string& prompt) {
             }
             
             if (event.type == sf::Event::TextEntered) {
-                // Only add printable characters
+                // Only add printable ASCII characters
                 if (event.text.unicode < 128 && event.text.unicode >= 32) {
                     input += static_cast<char>(event.text.unicode);
                 } else if (event.text.unicode >= 128) {
                     // Handle UTF-8 characters for Vietnamese support
                     sf::Uint32 unicode = event.text.unicode;
-                    if (unicode < 0x80) {
-                        input += static_cast<char>(unicode);
-                    } else if (unicode < 0x800) {
+                    if (unicode < 0x800) {
                         input += static_cast<char>((unicode >> 6) | 0xC0);
                         input += static_cast<char>((unicode & 0x3F) | 0x80);
                     } else if (unicode < 0x10000) {

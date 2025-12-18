@@ -143,7 +143,7 @@ void GuiRenderer::drawLine(int x1, int y1, int x2, int y2, const Color& color, i
     } else {
         // For thick lines, draw a rectangle rotated along the line
         float length = std::sqrt(static_cast<float>((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)));
-        float angle = std::atan2(static_cast<float>(y2-y1), static_cast<float>(x2-x1)) * 180.0f / 3.14159265f;
+        float angle = std::atan2(static_cast<float>(y2-y1), static_cast<float>(x2-x1)) * 180.0f / M_PI;
         
         sf::RectangleShape thickLine(sf::Vector2f(length, static_cast<float>(thickness)));
         thickLine.setPosition(static_cast<float>(x1), static_cast<float>(y1));
