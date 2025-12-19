@@ -384,8 +384,25 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         return;
     }
     
+    // Validate ngân sách
+    if (budget < 0) {
+        showMessageDialog(gui, "Loi", {
+            "Ngan sach khong the am.",
+            "Vui long nhap so duong."
+        });
+        return;
+    }
+    
+    if (budget < 1) {
+        showMessageDialog(gui, "Canh bao", {
+            "Ngan sach qua thap (< 1 ty VND).",
+            "Ngan sach toi thieu de co giai phap cai thien: 5-10 ty VND.",
+            "Ban se chi xem duoc giai phap khong can ngan sach."
+        });
+    }
+    
     // Phân tích
-    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex]. edgeId, budget);
+    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex].edgeId, budget);
     
     // Hiển thị kết quả
     bool done = false;

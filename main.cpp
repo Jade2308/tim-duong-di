@@ -93,22 +93,38 @@ string buildMapDisplay(RoadMap& map) {
     out += boxLine(GREEN "Tổng Edges (Đoạn Đường): " + to_string(totalEdges) + RESET);
     out += "|" + string(BOX_WIDTH - 2, '-') + "|\n";
     
-    // Hiển thị TẤT CẢ các node
-    out += boxLine("TẤT CẢ CÁC NODE:");
-    for (auto id : map.getNodeIds()) {
-        out += boxLine(" - " + id);
+    // Chỉ hiển thị tóm tắt thay vì tất cả các node và edge
+    out += boxCenter(YELLOW "📍 CÁC ĐIỂM GIAO LỘ CHÍNH" RESET);
+    
+    auto nodeIds = map.getNodeIds();
+    string nodeList;
+    for (size_t i = 0; i < nodeIds.size(); ++i) {
+        nodeList += nodeIds[i];
+        if (i < nodeIds.size() - 1) nodeList += ", ";
+        // Xuống dòng mỗi 5 node để dễ đọc
+        if ((i + 1) % 5 == 0 && i < nodeIds.size() - 1) {
+            out += boxLine(nodeList);
+            nodeList = "";
+        }
     }
+    if (!nodeList.empty()) {
+        out += boxLine(nodeList);
+    }
+    
     out += "|" + string(BOX_WIDTH - 2, '-') + "|\n";
-
-    // Hiển thị TẤT CẢ các edge (chỉ hiển thị edge gốc, không hiển thị reverse)
-    out += boxLine("TẤT CẢ CÁC EDGE:");
+    out += boxCenter(YELLOW "🛣️  CÁC TUYẾN ĐƯỜNG" RESET);
+    
+    // Hiển thị edges theo nhóm dựa trên node nguồn để dễ phân biệt
     for (auto e : map.getEdges()) {
         if (!e.isReverse) {  // Chỉ hiển thị edge gốc
             double time = e.avgSpeed > 0 ? e.length / e.avgSpeed : 1e9;
-            // TG = Thời gian (Time), D = Độ dài (Length)
-            string line = e.id + ": " + e.src + "->" + e.dst;
-            line += " | TG=" + to_string((int)time) + " | D=" + to_string((int)e.length);
+            // Định dạng rõ ràng hơn: [ID] Tên: Nguồn → Đích (Thời gian, Độ dài)
+            string line = CYAN "[" + e.id + "]" RESET " " + e.name + ": ";
+            line += GREEN + e.src + RESET " → " + GREEN + e.dst + RESET;
             out += boxLine(line);
+            // Thêm dòng thông tin chi tiết với indent
+            string detail = "    Thời gian: " + to_string((int)time) + " | Độ dài: " + to_string((int)e.length) + " km";
+            out += boxLine(detail);
         }
     }
 
