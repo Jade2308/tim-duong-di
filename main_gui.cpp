@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstdio>
 #include <SDL2/SDL.h>
 
 #include "RoadMap.h"
@@ -198,8 +199,10 @@ void handleShortestPath(GuiRenderer& gui, RoadMap& map) {
                 y += 25;
             }
             
-            gui.drawText("Thoi gian: " + to_string((int)time) + " don vi", 
-                        590, y + 20, Color(100, 255, 100));
+            // Format travel time more accurately
+            char timeBuffer[50];
+            snprintf(timeBuffer, sizeof(timeBuffer), "Thoi gian: %.2f phut", time);
+            gui.drawText(timeBuffer, 590, y + 20, Color(100, 255, 100));
             
             gui.drawText("Press any key to continue", 590, 520, Color(150, 150, 150));
             
@@ -285,8 +288,10 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
             y += 25;
         }
         
-        gui.drawText("Thoi gian: " + to_string((int)result.travelTime) + " don vi", 
-                    590, y + 20, Color(100, 255, 100));
+        // Format travel time more accurately
+        char timeBuffer[50];
+        snprintf(timeBuffer, sizeof(timeBuffer), "Thoi gian: %.2f phut", result.travelTime);
+        gui.drawText(timeBuffer, 590, y + 20, Color(100, 255, 100));
         
         gui.drawText("Nhan phim bat ky de tiep tuc", 590, 520, Color(150, 150, 150));
         
@@ -319,8 +324,20 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             if (event.type == SDL_QUIT) {
                 return;
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym. sym == SDLK_ESCAPE) {
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
                 return;
+            }
+            
+            if (event.type == SDL_MOUSEMOTION) {
+                gui.handleMouseMotion(event.motion.x, event.motion.y);
+            }
+            
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                int btnId = gui.handleMouseClick(event.button.x, event.button.y);
+                if (btnId >= 0 && btnId < (int)congestedRoads.size()) {
+                    selectedIndex = btnId;
+                    selectingRoad = false;
+                }
             }
         }
         
@@ -333,7 +350,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         int y = 120;
         gui.clearButtons();
         
-        for (size_t i = 0; i < congestedRoads. size(); i++) {
+        for (size_t i = 0; i < congestedRoads.size(); i++) {
             const auto& info = congestedRoads[i];
             
             string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ") - Qua tai: " + 
@@ -345,28 +362,10 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         
         // Vẽ các nút
         for (size_t i = 0; i < gui.buttons.size(); i++) {
-            gui.handleMouseMotion(0, 0);  // Reset hover
             gui.drawButton(gui.buttons[i]);
         }
         
         gui.present();
-        
-        // Xử lý click
-        while (gui.pollEvent(event)) {
-            if (event.type == SDL_MOUSEMOTION) {
-                gui.handleMouseMotion(event.motion. x, event.motion.y);
-            }
-            
-            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-                int btnId = gui.handleMouseClick(event.button.x, event.button.y);
-                if (btnId >= 0 && btnId < (int)congestedRoads.size()) {
-                    selectedIndex = btnId;
-                    selectingRoad = false;
-                    break;
-                }
-            }
-        }
-        
         SDL_Delay(16);
     }
     
@@ -379,8 +378,14 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
     double budget = 0;
     try {
         budget = stod(budgetStr);
+        
+        // Validate budget is non-negative
+        if (budget < 0) {
+            showMessageDialog(gui, "Loi", {"Ngan sach khong duoc am", "Vui long nhap lai gia tri hop le"});
+            return;
+        }
     } catch (...) {
-        showMessageDialog(gui, "Loi", {"Ngan sach khong hop le"});
+        showMessageDialog(gui, "Loi", {"Ngan sach khong hop le", "Vui long nhap so"});
         return;
     }
     
