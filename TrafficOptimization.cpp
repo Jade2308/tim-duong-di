@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <set>
 #include <unordered_map>
+#include <limits>
 using namespace std;
 
 // Named constants for traffic optimization calculations
@@ -50,9 +51,35 @@ void TrafficOptimization::optimizeTraffic() {
 
     cout << "Nhập ngân sách tối đa (tỷ VNĐ): ";
     cin >> budget;
+    
+    // Kiểm tra lỗi nhập liệu
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "\n❌ LỖI: Ngân sách không hợp lệ. Vui lòng nhập số.\n";
+        return;
+    }
+    
+    // Validate ngân sách phải là số dương
+    if (budget < 0) {
+        cout << "\n❌ LỖI: Ngân sách không thể âm. Vui lòng nhập số dương.\n";
+        return;
+    }
+    
+    if (budget < 1) {
+        cout << "\n⚠️  CẢNH BÁO: Ngân sách quá thấp (< 1 tỷ VNĐ).\n";
+        cout << "Ngân sách tối thiểu để có giải pháp cải thiện thường từ 5-10 tỷ VNĐ.\n";
+        cout << "Bạn có muốn tiếp tục xem giải pháp không cần ngân sách? (y/n): ";
+        char choice;
+        cin >> choice;
+        if (choice != 'y' && choice != 'Y') {
+            cout << "Đã hủy phân tích.\n";
+            return;
+        }
+    }
 
     if (!map_.hasEdge(congestedEdgeId)) {
-        cout << "❌ Tuyến đường không tồn tại.\n";
+        cout << "\n❌ LỖI: Tuyến đường không tồn tại.\n";
         return;
     }
     

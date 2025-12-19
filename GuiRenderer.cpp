@@ -306,31 +306,71 @@ void GuiRenderer::drawMapEdge(double x1, double y1, double x2, double y2,
 
 void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& path, 
                                 int offsetX, int offsetY, double scale) {
+    (void)scale;  // Không sử dụng scale parameter vì tính toán lại
     if (path.size() < 2) return;
     
-    // Draw highlighted path
+    auto nodeIds = map.getNodeIds();
+    if (nodeIds.empty()) return;
+    
+    // Tính toán bounding box tự động (giống drawMap)
+    double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
+    for (const auto& nodeId : nodeIds) {
+        auto node = map.getNodeById(nodeId);
+        if (node) {
+            minLat = std::min(minLat, node->lat);
+            maxLat = std::max(maxLat, node->lat);
+            minLon = std::min(minLon, node->lon);
+            maxLon = std::max(maxLon, node->lon);
+        }
+    }
+    
+    // Tính scale tự động để vừa với panel (giống drawMap)
+    double latRange = maxLat - minLat;
+    double lonRange = maxLon - minLon;
+    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double centerLat = (minLat + maxLat) / 2.0;
+    double centerLon = (minLon + maxLon) / 2.0;
+    
+    // Vẽ đường highlight với độ dày lớn hơn và màu nổi bật
     for (size_t i = 0; i < path.size() - 1; i++) {
         auto srcNode = map.getNodeById(path[i]);
         auto dstNode = map.getNodeById(path[i+1]);
         
         if (srcNode && dstNode) {
-            int x1, y1, x2, y2;
-            latLonToScreen(srcNode->lat, srcNode->lon, x1, y1, offsetX, offsetY, scale);
-            latLonToScreen(dstNode->lat, dstNode->lon, x2, y2, offsetX, offsetY, scale);
+            int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
+            int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawLine(x1, y1, x2, y2, Color(255, 200, 0), 5);  // Yellow highlight
+            // Vẽ đường nền đen để tạo viền
+            drawLine(x1, y1, x2, y2, Color(0, 0, 0), 8);
+            // Vẽ đường chính màu vàng sáng
+            drawLine(x1, y1, x2, y2, Color(255, 255, 0), 6);
         }
     }
     
-    // Draw path nodes
-    for (const auto& nodeId : path) {
-        auto node = map.getNodeById(nodeId);
+    // Vẽ các node trên path với màu nổi bật
+    for (size_t i = 0; i < path.size(); i++) {
+        auto node = map.getNodeById(path[i]);
         if (node) {
-            int x, y;
-            latLonToScreen(node->lat, node->lon, x, y, offsetX, offsetY, scale);
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawCircle(x, y, 10, Color(255, 200, 0), true);
-            drawCircle(x, y, 10, Color(255, 255, 255), false);
+            // Node bắt đầu: màu xanh lá
+            if (i == 0) {
+                drawCircle(x, y, 10, Color(0, 255, 0), true);
+                drawCircle(x, y, 10, Color(255, 255, 255), false);
+            }
+            // Node kết thúc: màu đỏ
+            else if (i == path.size() - 1) {
+                drawCircle(x, y, 10, Color(255, 0, 0), true);
+                drawCircle(x, y, 10, Color(255, 255, 255), false);
+            }
+            // Node trung gian: màu vàng
+            else {
+                drawCircle(x, y, 8, Color(255, 255, 0), true);
+                drawCircle(x, y, 8, Color(255, 255, 255), false);
+            }
         }
     }
 }
