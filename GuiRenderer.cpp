@@ -273,6 +273,11 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
                 }
                 
                 drawLine(x1, y1, x2, y2, edgeColor, 2);
+                
+                // Draw edge ID at the midpoint of the edge
+                int midX = (x1 + x2) / 2;
+                int midY = (y1 + y2) / 2;
+                drawText(edge.id, midX + 5, midY - 5, Color(200, 200, 255));
             }
         }
     }
