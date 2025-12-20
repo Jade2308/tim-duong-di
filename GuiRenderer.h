@@ -62,10 +62,12 @@ public:
     void drawMapNode(const std::string& nodeId, double x, double y, const Color& color, int radius = 8);
     void drawMapEdge(double x1, double y1, double x2, double y2, const Color& color, int thickness = 2);
     void highlightPath(RoadMap& map, const std::vector<std::string>& path, int offsetX, int offsetY, double scale);
+    std::string getEdgeIdBetweenNodes(RoadMap& map, const std::string& srcNode, const std::string& dstNode);
     
     // Helper functions
     void drawTitle(const std::string& title);
     void drawPanel(int x, int y, int w, int h, const std::string& title);
+    void drawSmallText(const std::string& text, int x, int y, const Color& color);
     
     int getWidth() const { return windowWidth; }
     int getHeight() const { return windowHeight; }
@@ -78,6 +80,7 @@ private:
     SDL_Renderer* renderer;
     TTF_Font* font;
     TTF_Font* titleFont;
+    TTF_Font* smallFont;
     
     int windowWidth;
     int windowHeight;

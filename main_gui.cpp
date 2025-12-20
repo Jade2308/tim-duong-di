@@ -107,6 +107,11 @@ void drawMainMenu(GuiRenderer& gui, RoadMap& map) {
     gui.drawPanel(50, 80, 500, 500, "Ban Do Hien Tai");
     gui.drawMap(map, 80, 120, 1.0);
     
+    // Draw legend for map colors
+    gui.drawText("Do: Qua tai (>90%)", 60, 540, Color(220, 20, 20));
+    gui.drawText("Cam: Gan qua tai (70-90%)", 190, 540, Color(220, 160, 20));
+    gui.drawText("Xanh: Binh thuong (<70%)", 370, 540, Color(60, 180, 60));
+    
     // Draw info panel
     gui.drawPanel(570, 80, 400, 200, "Thong Tin Ban Do");
     int totalNodes = map.getNodeIds().size();
@@ -198,7 +203,8 @@ void handleShortestPath(GuiRenderer& gui, RoadMap& map) {
                 y += 25;
             }
             
-            gui.drawText("Thoi gian: " + to_string((int)time) + " don vi", 
+            gui.drawText("Thoi gian: " + to_string((int)(time * 60)) + " phut (" + 
+                        to_string(time) + " gio)", 
                         590, y + 20, Color(100, 255, 100));
             
             gui.drawText("Press any key to continue", 590, 520, Color(150, 150, 150));
@@ -274,7 +280,7 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
         string pathStr;
         for (size_t i = 0; i < result.path.size(); i++) {
             pathStr += result.path[i];
-            if (i < result. path.size() - 1) pathStr += " -> ";
+            if (i < result.path.size() - 1) pathStr += " -> ";
         }
         
         // Split long path into multiple lines
@@ -285,7 +291,8 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
             y += 25;
         }
         
-        gui.drawText("Thoi gian: " + to_string((int)result.travelTime) + " don vi", 
+        gui.drawText("Thoi gian: " + to_string((int)(result.travelTime * 60)) + " phut (" + 
+                    to_string(result.travelTime) + " gio)", 
                     590, y + 20, Color(100, 255, 100));
         
         gui.drawText("Nhan phim bat ky de tiep tuc", 590, 520, Color(150, 150, 150));
@@ -315,15 +322,30 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
     
     while (selectingRoad) {
         SDL_Event event;
+        
+        // Xử lý tất cả events trong một vòng lặp
         while (gui.pollEvent(event)) {
             if (event.type == SDL_QUIT) {
                 return;
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym. sym == SDLK_ESCAPE) {
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
                 return;
+            }
+            
+            if (event.type == SDL_MOUSEMOTION) {
+                gui.handleMouseMotion(event.motion.x, event.motion.y);
+            }
+            
+            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+                int btnId = gui.handleMouseClick(event.button.x, event.button.y);
+                if (btnId >= 0 && btnId < (int)congestedRoads.size()) {
+                    selectedIndex = btnId;
+                    selectingRoad = false;
+                }
             }
         }
         
+        // Vẽ UI
         gui.clear(Color(40, 40, 50));
         gui.drawTitle("Cac tuyen duong bi un tac");
         
@@ -333,7 +355,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         int y = 120;
         gui.clearButtons();
         
-        for (size_t i = 0; i < congestedRoads. size(); i++) {
+        for (size_t i = 0; i < congestedRoads.size(); i++) {
             const auto& info = congestedRoads[i];
             
             string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ") - Qua tai: " + 
@@ -345,28 +367,10 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         
         // Vẽ các nút
         for (size_t i = 0; i < gui.buttons.size(); i++) {
-            gui.handleMouseMotion(0, 0);  // Reset hover
             gui.drawButton(gui.buttons[i]);
         }
         
         gui.present();
-        
-        // Xử lý click
-        while (gui.pollEvent(event)) {
-            if (event.type == SDL_MOUSEMOTION) {
-                gui.handleMouseMotion(event.motion. x, event.motion.y);
-            }
-            
-            if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-                int btnId = gui.handleMouseClick(event.button.x, event.button.y);
-                if (btnId >= 0 && btnId < (int)congestedRoads.size()) {
-                    selectedIndex = btnId;
-                    selectingRoad = false;
-                    break;
-                }
-            }
-        }
-        
         SDL_Delay(16);
     }
     
@@ -379,13 +383,17 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
     double budget = 0;
     try {
         budget = stod(budgetStr);
+        if (budget <= 0) {
+            showMessageDialog(gui, "Loi", {"Ngan sach phai lon hon 0"});
+            return;
+        }
     } catch (...) {
         showMessageDialog(gui, "Loi", {"Ngan sach khong hop le"});
         return;
     }
     
     // Phân tích
-    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex]. edgeId, budget);
+    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex].edgeId, budget);
     
     // Hiển thị kết quả
     bool done = false;
@@ -399,7 +407,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             }
             if (event.type == SDL_KEYDOWN) {
                 if (event.key.keysym.sym == SDLK_ESCAPE || 
-                    event.key. keysym.sym == SDLK_RETURN) {
+                    event.key.keysym.sym == SDLK_RETURN) {
                     done = true;
                 }
                 if (event.key.keysym.sym == SDLK_UP) scrollOffset -= 20;
@@ -419,26 +427,26 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         
         // Thông tin cơ bản
         gui.drawText("Tuyen duong: " + result.congestedEdge.id, 70, y, Color(255, 255, 100));
-        y += 25;
+        y += 30;
         gui.drawText("Chieu:  " + result.congestedEdge.src + " -> " + result.congestedEdge.dst, 
                     70, y, Color(255, 255, 255));
-        y += 25;
+        y += 30;
         gui.drawText("Luu luong: " + to_string((int)result.congestedEdge.flow) + " xe/gio", 
                     70, y, Color(255, 255, 255));
-        y += 25;
+        y += 30;
         gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
                     70, y, Color(255, 255, 255));
-        y += 25;
-        gui. drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
+        y += 30;
+        gui.drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
                     70, y, Color(100, 255, 100));
-        y += 40;
+        y += 45;
         
         if (result.hasProposal) {
             // Có phương án
             auto& proposal = result.bestProposal;
             
             gui.drawText("GIAI PHAP:", 70, y, Color(100, 255, 255));
-            y += 30;
+            y += 35;
             
             // Loại phương án
             string typeStr;
@@ -450,52 +458,52 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
                 typeStr = "Xay tuyen duong moi";
             }
             gui.drawText("Loai: " + typeStr, 70, y, Color(255, 255, 255));
-            y += 25;
+            y += 30;
             
             gui.drawText("Chi phi: " + to_string((int)proposal.estimatedCost) + " ty VND", 
                         70, y, Color(255, 255, 255));
-            y += 25;
+            y += 30;
             
             gui.drawText("Giam tai: " + to_string((int)proposal.trafficReduction) + " xe/gio", 
                         70, y, Color(100, 255, 100));
-            y += 25;
+            y += 30;
             
             gui.drawText("Tiet kiem thoi gian: " + to_string((int)proposal.travelTimeSaved) + " phut", 
                         70, y, Color(100, 255, 100));
-            y += 30;
+            y += 35;
             
             // Lý do - chia thành nhiều dòng
             gui.drawText("LY DO:", 70, y, Color(255, 255, 100));
-            y += 25;
+            y += 30;
             
             string reasoning = proposal.reasoning;
             int maxChars = 100;
             for (size_t i = 0; i < reasoning.length(); i += maxChars) {
                 string line = reasoning.substr(i, maxChars);
-                gui. drawText(line, 70, y, Color(200, 200, 200));
-                y += 20;
+                gui.drawText(line, 70, y, Color(200, 200, 200));
+                y += 25;
             }
             
         } else {
             // Không có phương án trong ngân sách
             gui.drawText("KHONG CO GIAI PHAP KHA THI", 70, y, Color(255, 100, 100));
-            y += 30;
+            y += 35;
             
             gui.drawText("Ngan sach toi thieu: " + to_string((int)result.minBudgetNeeded) + " ty VND", 
                         70, y, Color(255, 255, 100));
-            y += 25;
+            y += 30;
             
             gui.drawText("Thieu hut: " + to_string((int)(result.minBudgetNeeded - budget)) + " ty VND", 
                         70, y, Color(255, 100, 100));
-            y += 40;
+            y += 45;
             
             // Giải pháp thay thế
             gui.drawText("GIAI PHAP THAY THE (khong can ngan sach):", 70, y, Color(100, 255, 255));
-            y += 25;
+            y += 30;
             
             for (const auto& sol : result.trafficSignalSolutions) {
                 gui.drawText(sol, 70, y, Color(200, 200, 200));
-                y += 20;
+                y += 25;
             }
         }
         
@@ -540,14 +548,10 @@ int main(int argc, char* argv[]) {
     string mapFile = "map.txt";
     if (argc > 1) {
         mapFile = argv[1];
-        cout << "Loading map from command line argument: " << mapFile << endl;
     }
     
-    if (map.loadFromFile(mapFile)) {
-        cout << "Loaded " << mapFile << " successfully!" << endl;
-    } else {
-        cout << "Could not load " << mapFile << ", starting with empty map." << endl;
-    }
+    // Load map silently in GUI mode
+    map.loadFromFile(mapFile);
     
     // Main event loop
     bool quit = false;
