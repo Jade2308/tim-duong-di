@@ -18,13 +18,11 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
     
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
     }
     
     // Initialize SDL_ttf
     if (TTF_Init() < 0) {
-        std::cerr << "SDL_ttf could not initialize! TTF_Error: " << TTF_GetError() << std::endl;
         return false;
     }
     
@@ -35,14 +33,12 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
                              width, height,
                              SDL_WINDOW_SHOWN);
     if (!window) {
-        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
     }
     
     // Create renderer
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) {
-        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
     }
     
@@ -51,10 +47,6 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
     if (!font) {
         // Try alternative font path
         font = TTF_OpenFont("assets/fonts/arial.ttf", 18);
-        if (!font) {
-            std::cerr << "Failed to load font! TTF_Error: " << TTF_GetError() << std::endl;
-            std::cerr << "Continuing without font support (text will not be rendered)" << std::endl;
-        }
     }
     
     titleFont = TTF_OpenFont("assets/fonts/arial.ttf", 24);
@@ -121,7 +113,6 @@ void GuiRenderer::drawText(const std::string& text, int x, int y, const Color& c
     SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
     SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), sdlColor);
     if (!surface) {
-        std::cerr << "Không thể render text: " << text << " - " << TTF_GetError() << std::endl;
         return;
     }
     
@@ -251,7 +242,7 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
     double centerLat = (minLat + maxLat) / 2.0;
     double centerLon = (minLon + maxLon) / 2.0;
     
-    // Vẽ edges
+    // Vẽ edges với màu dựa trên traffic load
     for (const auto& edge :  edges) {
         if (! edge.isReverse) {
             auto srcNode = map.getNodeById(edge.src);
@@ -263,30 +254,30 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
                 int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
                 int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
                 
+                // Color based on traffic load - more clear distinction
                 Color edgeColor(100, 100, 100);
                 if (edge.flow > edge.capacity * 0.9) {
-                    edgeColor = Color(200, 50, 50);
+                    edgeColor = Color(220, 20, 20);  // Red for heavy congestion
                 } else if (edge.flow > edge.capacity * 0.7) {
-                    edgeColor = Color(200, 150, 50);
+                    edgeColor = Color(220, 160, 20);  // Orange for moderate congestion
                 } else {
-                    edgeColor = Color(50, 150, 50);
+                    edgeColor = Color(60, 180, 60);  // Green for free flow
                 }
                 
-                drawLine(x1, y1, x2, y2, edgeColor, 2);
+                drawLine(x1, y1, x2, y2, edgeColor, 3);
             }
         }
     }
     
-    // Vẽ nodes
+    // Vẽ nodes - simpler without labels to reduce clutter
     for (const auto& nodeId : nodeIds) {
         auto node = map.getNodeById(nodeId);
         if (node) {
             int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
             int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawCircle(x, y, 6, Color(70, 130, 180), true);
-            drawCircle(x, y, 6, Color(255, 255, 255), false);
-            drawText(nodeId, x + 10, y - 5, Color(255, 255, 255));
+            drawCircle(x, y, 5, Color(70, 130, 180), true);
+            drawCircle(x, y, 5, Color(255, 255, 255), false);
         }
     }
 }
@@ -306,33 +297,80 @@ void GuiRenderer::drawMapEdge(double x1, double y1, double x2, double y2,
 
 void GuiRenderer::highlightPath(RoadMap& map, const std::vector<std::string>& path, 
                                 int offsetX, int offsetY, double scale) {
+    (void)scale;  // Unused parameter - we calculate our own scale
+    
     if (path.size() < 2) return;
     
-    // Draw highlighted path
+    auto nodeIds = map.getNodeIds();
+    if (nodeIds.empty()) return;
+    
+    // Calculate bounding box and auto-scale (same as drawMap)
+    double minLat = 1e9, maxLat = -1e9, minLon = 1e9, maxLon = -1e9;
+    for (const auto& nodeId : nodeIds) {
+        auto node = map.getNodeById(nodeId);
+        if (node) {
+            minLat = std::min(minLat, node->lat);
+            maxLat = std::max(maxLat, node->lat);
+            minLon = std::min(minLon, node->lon);
+            maxLon = std::max(maxLon, node->lon);
+        }
+    }
+    
+    double latRange = maxLat - minLat;
+    double lonRange = maxLon - minLon;
+    double autoScale = std::min(380.0 / (latRange * 1000), 420.0 / (lonRange * 1000)) * 0.9;
+    double centerLat = (minLat + maxLat) / 2.0;
+    double centerLon = (minLon + maxLon) / 2.0;
+    
+    // Draw highlighted path with edge IDs
     for (size_t i = 0; i < path.size() - 1; i++) {
         auto srcNode = map.getNodeById(path[i]);
         auto dstNode = map.getNodeById(path[i+1]);
         
         if (srcNode && dstNode) {
-            int x1, y1, x2, y2;
-            latLonToScreen(srcNode->lat, srcNode->lon, x1, y1, offsetX, offsetY, scale);
-            latLonToScreen(dstNode->lat, dstNode->lon, x2, y2, offsetX, offsetY, scale);
+            int x1 = static_cast<int>((srcNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y1 = static_cast<int>((centerLat - srcNode->lat) * autoScale * 1000) + offsetY + 190;
+            int x2 = static_cast<int>((dstNode->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y2 = static_cast<int>((centerLat - dstNode->lat) * autoScale * 1000) + offsetY + 190;
             
-            drawLine(x1, y1, x2, y2, Color(255, 200, 0), 5);  // Yellow highlight
+            // Draw thick highlighted line
+            drawLine(x1, y1, x2, y2, Color(255, 200, 0), 6);  // Thicker yellow highlight
+            
+            // Get and display edge ID
+            std::string edgeId = getEdgeIdBetweenNodes(map, path[i], path[i+1]);
+            if (!edgeId.empty()) {
+                int midX = (x1 + x2) / 2;
+                int midY = (y1 + y2) / 2;
+                
+                // Draw background for edge ID text
+                drawRect(midX - 20, midY - 10, 40, 20, Color(50, 50, 50, 200), true);
+                drawText(edgeId, midX - 15, midY - 8, Color(255, 255, 100), 16);
+            }
         }
     }
     
-    // Draw path nodes
+    // Draw path nodes with larger highlight
     for (const auto& nodeId : path) {
         auto node = map.getNodeById(nodeId);
         if (node) {
-            int x, y;
-            latLonToScreen(node->lat, node->lon, x, y, offsetX, offsetY, scale);
+            int x = static_cast<int>((node->lon - centerLon) * autoScale * 1000) + offsetX + 210;
+            int y = static_cast<int>((centerLat - node->lat) * autoScale * 1000) + offsetY + 190;
             
             drawCircle(x, y, 10, Color(255, 200, 0), true);
             drawCircle(x, y, 10, Color(255, 255, 255), false);
+            drawText(nodeId, x + 12, y - 5, Color(255, 255, 100));
         }
     }
+}
+
+std::string GuiRenderer::getEdgeIdBetweenNodes(RoadMap& map, const std::string& srcNode, const std::string& dstNode) {
+    auto edges = map.outgoingEdges(srcNode);
+    for (const auto& edge : edges) {
+        if (edge.dst == dstNode) {
+            return edge.id;
+        }
+    }
+    return "";
 }
 
 void GuiRenderer::drawTitle(const std::string& title) {

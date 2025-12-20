@@ -62,6 +62,7 @@ public:
     void drawMapNode(const std::string& nodeId, double x, double y, const Color& color, int radius = 8);
     void drawMapEdge(double x1, double y1, double x2, double y2, const Color& color, int thickness = 2);
     void highlightPath(RoadMap& map, const std::vector<std::string>& path, int offsetX, int offsetY, double scale);
+    std::string getEdgeIdBetweenNodes(RoadMap& map, const std::string& srcNode, const std::string& dstNode);
     
     // Helper functions
     void drawTitle(const std::string& title);

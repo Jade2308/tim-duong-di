@@ -198,7 +198,8 @@ void handleShortestPath(GuiRenderer& gui, RoadMap& map) {
                 y += 25;
             }
             
-            gui.drawText("Thoi gian: " + to_string((int)time) + " don vi", 
+            gui.drawText("Thoi gian: " + to_string((int)(time * 60)) + " phut (" + 
+                        to_string(time) + " gio)", 
                         590, y + 20, Color(100, 255, 100));
             
             gui.drawText("Press any key to continue", 590, 520, Color(150, 150, 150));
@@ -285,7 +286,8 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
             y += 25;
         }
         
-        gui.drawText("Thoi gian: " + to_string((int)result.travelTime) + " don vi", 
+        gui.drawText("Thoi gian: " + to_string((int)(result.travelTime * 60)) + " phut (" + 
+                    to_string(result.travelTime) + " gio)", 
                     590, y + 20, Color(100, 255, 100));
         
         gui.drawText("Nhan phim bat ky de tiep tuc", 590, 520, Color(150, 150, 150));
@@ -379,6 +381,10 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
     double budget = 0;
     try {
         budget = stod(budgetStr);
+        if (budget <= 0) {
+            showMessageDialog(gui, "Loi", {"Ngan sach phai lon hon 0"});
+            return;
+        }
     } catch (...) {
         showMessageDialog(gui, "Loi", {"Ngan sach khong hop le"});
         return;
@@ -540,14 +546,10 @@ int main(int argc, char* argv[]) {
     string mapFile = "map.txt";
     if (argc > 1) {
         mapFile = argv[1];
-        cout << "Loading map from command line argument: " << mapFile << endl;
     }
     
-    if (map.loadFromFile(mapFile)) {
-        cout << "Loaded " << mapFile << " successfully!" << endl;
-    } else {
-        cout << "Could not load " << mapFile << ", starting with empty map." << endl;
-    }
+    // Load map silently in GUI mode
+    map.loadFromFile(mapFile);
     
     // Main event loop
     bool quit = false;
