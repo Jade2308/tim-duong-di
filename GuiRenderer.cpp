@@ -305,7 +305,7 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
             int textWidth = nodeId.length() * 8 + 4;  // Ước tính độ rộng
             int textHeight = 18;
             drawRect(textX - 2, textY - 2, textWidth, textHeight, Color(0, 0, 0, 180), true);
-            drawText(nodeId, textX, textY, Color(255, 255, 100));
+            drawText(nodeId, textX, textY, Color(255, 255, 100), 18);
         }
     }
 }

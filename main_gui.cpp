@@ -438,7 +438,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
                     70, y, Color(255, 255, 255));
         y += 25;
-        gui. drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
+        gui.drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
                     70, y, Color(100, 255, 100));
         y += 40;
         
@@ -481,7 +481,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             int maxChars = 100;
             for (size_t i = 0; i < reasoning.length(); i += maxChars) {
                 string line = reasoning.substr(i, maxChars);
-                gui. drawText(line, 70, y, Color(200, 200, 200));
+                gui.drawText(line, 70, y, Color(200, 200, 200));
                 y += 20;
             }
             
