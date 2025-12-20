@@ -336,17 +336,26 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         for (size_t i = 0; i < congestedRoads. size(); i++) {
             const auto& info = congestedRoads[i];
             
-            string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ") - Qua tai: " + 
-                           to_string((int)info.overloadPercent) + "%";
-            gui.addButton(Button(120, y, 760, 60, btnText, i));
+            // Rút gọn text để tránh chồng chéo
+            string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ")";
+            gui.addButton(Button(120, y, 520, 60, btnText, i));
             
             y += 70;
         }
         
-        // Vẽ các nút
+        // Vẽ các nút và thông tin quá tải
+        y = 120;
         for (size_t i = 0; i < gui.buttons.size(); i++) {
             gui.handleMouseMotion(0, 0);  // Reset hover
             gui.drawButton(gui.buttons[i]);
+            
+            // Vẽ thông tin quá tải bên phải button
+            const auto& info = congestedRoads[i];
+            string overloadText = "Qua tai: " + to_string((int)info.overloadPercent) + "%";
+            Color overloadColor = info.overloadPercent > 100 ? Color(255, 50, 50) : Color(255, 150, 50);
+            gui.drawText(overloadText, 660, y + 20, overloadColor);
+            
+            y += 70;
         }
         
         gui.present();
