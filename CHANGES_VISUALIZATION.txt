@@ -1,0 +1,106 @@
+═══════════════════════════════════════════════════════════════════════════════
+  GUI DISPLAY FIXES - VISUALIZATION OF CHANGES
+═══════════════════════════════════════════════════════════════════════════════
+
+ISSUE 1: Edge IDs Not Displayed
+────────────────────────────────────────────────────────────────────────────────
+BEFORE:                                 AFTER:
+┌─────────────────────┐                ┌─────────────────────┐
+│                     │                │        ┌───┐        │
+│    A ●──────● B     │                │    A ●─┤E01├─● B    │
+│                     │                │        └───┘        │
+│         ●           │                │         ●           │
+│         C           │                │      ┌───┐          │
+│                     │                │      │ C │          │
+└─────────────────────┘                │      └───┘          │
+                                       └─────────────────────┘
+  No edge IDs visible                   Edge IDs with background
+
+
+ISSUE 2: Node IDs Hard to Read / Overlapping
+────────────────────────────────────────────────────────────────────────────────
+BEFORE:                                 AFTER:
+┌─────────────────────┐                ┌─────────────────────┐
+│    A●               │                │   ┌───┐             │
+│     B●              │                │   │ A │●            │
+│      C●             │                │   └───┘             │
+│                     │                │   ┌───┐             │
+│  (White text,       │                │   │ B │●            │
+│   hard to read)     │                │   └───┘             │
+│                     │                │   ┌───┐             │
+│                     │                │   │ C │●            │
+└─────────────────────┘                │   └───┘             │
+                                       │ (Yellow text with   │
+                                       │  black background)  │
+                                       └─────────────────────┘
+
+
+ISSUE 3: Traffic Optimization Text Overlap
+────────────────────────────────────────────────────────────────────────────────
+BEFORE:
+┌────────────────────────────────────────────────────────────────────┐
+│ ┌────────────────────────────────────────────────────────────────┐ │
+│ │ E01 (A->B) - Qua tai: 120% [text gets cut off or overlaps...] │ │
+│ └────────────────────────────────────────────────────────────────┘ │
+│ ┌────────────────────────────────────────────────────────────────┐ │
+│ │ E03 (E->F) - Qua tai: 95% [text overlaps with edge info...  ] │ │
+│ └────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────┘
+        Button is too wide (760px), text is too long
+
+
+AFTER:
+┌────────────────────────────────────────────────────────────────────┐
+│ ┌─────────────────────────────┐   Qua tai: 120% (Red)             │
+│ │ E01 (A->B)                  │                                    │
+│ └─────────────────────────────┘                                    │
+│ ┌─────────────────────────────┐   Qua tai: 95% (Orange)           │
+│ │ E03 (E->F)                  │                                    │
+│ └─────────────────────────────┘                                    │
+└────────────────────────────────────────────────────────────────────┘
+    Button is narrower (520px), overload info separate with color
+
+
+CODE CHANGES SUMMARY
+────────────────────────────────────────────────────────────────────────────────
+File                   Changes          Description
+────────────────────────────────────────────────────────────────────────────────
+GuiRenderer.cpp        +21 lines        • Draw edge IDs with background
+                                        • Draw node IDs with background
+                                        • Change node ID color to yellow
+
+main_gui.cpp           +14, -7 lines    • Shorten button text
+                                        • Display overload info separately
+                                        • Add color coding for overload %
+
+GUI_DISPLAY_FIXES.md   +115 lines       Detailed bilingual documentation
+FINAL_FIX_SUMMARY.md   +202 lines       Comprehensive summary
+
+
+COLOR SCHEME
+────────────────────────────────────────────────────────────────────────────────
+Element              Color (R, G, B)      Usage
+────────────────────────────────────────────────────────────────────────────────
+Node ID text         (255, 255, 100)      Yellow - High visibility
+Edge ID text         (200, 200, 255)      Light blue - Distinguish from nodes
+Label background     (0, 0, 0, 180)       Semi-transparent black
+Overload > 100%      (255, 50, 50)        Red - Critical
+Overload ≤ 100%      (255, 150, 50)       Orange - Warning
+
+
+TESTING CHECKLIST
+────────────────────────────────────────────────────────────────────────────────
+☑ Edge IDs are visible on the map
+☑ Node IDs are visible with yellow text on black background
+☑ No text overlapping on the map
+☑ Traffic optimization buttons are properly sized
+☑ Overload information is displayed separately with correct colors
+☑ Vietnamese text displays correctly (UTF-8)
+☑ Code review passed
+☑ Security scan passed (no vulnerabilities)
+☑ Syntax validation passed
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  ALL ISSUES RESOLVED ✓
+═══════════════════════════════════════════════════════════════════════════════
