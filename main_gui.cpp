@@ -336,17 +336,26 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         for (size_t i = 0; i < congestedRoads. size(); i++) {
             const auto& info = congestedRoads[i];
             
-            string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ") - Qua tai: " + 
-                           to_string((int)info.overloadPercent) + "%";
-            gui.addButton(Button(120, y, 760, 60, btnText, i));
+            // Rút gọn text để tránh chồng chéo
+            string btnText = info.edgeId + " (" + info.srcNode + "->" + info.dstNode + ")";
+            gui.addButton(Button(120, y, 520, 60, btnText, i));
             
             y += 70;
         }
         
-        // Vẽ các nút
+        // Vẽ các nút và thông tin quá tải
+        y = 120;
         for (size_t i = 0; i < gui.buttons.size(); i++) {
             gui.handleMouseMotion(0, 0);  // Reset hover
             gui.drawButton(gui.buttons[i]);
+            
+            // Vẽ thông tin quá tải bên phải button
+            const auto& info = congestedRoads[i];
+            string overloadText = "Qua tai: " + to_string((int)info.overloadPercent) + "%";
+            Color overloadColor = info.overloadPercent > 100 ? Color(255, 50, 50) : Color(255, 150, 50);
+            gui.drawText(overloadText, 660, y + 20, overloadColor);
+            
+            y += 70;
         }
         
         gui.present();
@@ -429,7 +438,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
                     70, y, Color(255, 255, 255));
         y += 25;
-        gui. drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
+        gui.drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
                     70, y, Color(100, 255, 100));
         y += 40;
         
@@ -472,7 +481,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             int maxChars = 100;
             for (size_t i = 0; i < reasoning.length(); i += maxChars) {
                 string line = reasoning.substr(i, maxChars);
-                gui. drawText(line, 70, y, Color(200, 200, 200));
+                gui.drawText(line, 70, y, Color(200, 200, 200));
                 y += 20;
             }
             

@@ -273,6 +273,18 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
                 }
                 
                 drawLine(x1, y1, x2, y2, edgeColor, 2);
+                
+                // Vẽ Edge ID ở giữa cạnh với nền để dễ đọc
+                int midX = (x1 + x2) / 2;
+                int midY = (y1 + y2) / 2;
+                // Offset nhẹ để tránh trùng với đường
+                int labelOffsetX = 5;
+                int labelOffsetY = -10;
+                int edgeTextWidth = edge.id.length() * 7 + 4;
+                int edgeTextHeight = 16;
+                drawRect(midX + labelOffsetX - 2, midY + labelOffsetY - 2, 
+                         edgeTextWidth, edgeTextHeight, Color(0, 0, 0, 180), true);
+                drawText(edge.id, midX + labelOffsetX, midY + labelOffsetY, Color(200, 200, 255), 16);
             }
         }
     }
@@ -286,7 +298,14 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
             
             drawCircle(x, y, 6, Color(70, 130, 180), true);
             drawCircle(x, y, 6, Color(255, 255, 255), false);
-            drawText(nodeId, x + 10, y - 5, Color(255, 255, 255));
+            
+            // Vẽ nền cho text để dễ đọc hơn
+            int textX = x + 10;
+            int textY = y - 8;
+            int textWidth = nodeId.length() * 8 + 4;  // Ước tính độ rộng
+            int textHeight = 18;
+            drawRect(textX - 2, textY - 2, textWidth, textHeight, Color(0, 0, 0, 180), true);
+            drawText(nodeId, textX, textY, Color(255, 255, 100), 18);
         }
     }
 }
