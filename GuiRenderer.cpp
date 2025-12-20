@@ -4,7 +4,7 @@
 #include <algorithm>
 
 GuiRenderer::GuiRenderer()
-    : window(nullptr), renderer(nullptr), font(nullptr), titleFont(nullptr),
+    : window(nullptr), renderer(nullptr), font(nullptr), titleFont(nullptr), smallFont(nullptr),
       windowWidth(0), windowHeight(0) {
 }
 
@@ -54,6 +54,11 @@ bool GuiRenderer::init(const std::string& title, int width, int height) {
         titleFont = font; // Use regular font if bold is not available
     }
     
+    smallFont = TTF_OpenFont("assets/fonts/arial.ttf", 12);
+    if (!smallFont && font) {
+        smallFont = font; // Use regular font if small is not available
+    }
+    
     return true;
 }
 
@@ -65,6 +70,10 @@ void GuiRenderer::cleanup() {
     if (titleFont && titleFont != font) {
         TTF_CloseFont(titleFont);
         titleFont = nullptr;
+    }
+    if (smallFont && smallFont != font && smallFont != titleFont) {
+        TTF_CloseFont(smallFont);
+        smallFont = nullptr;
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
@@ -128,6 +137,30 @@ void GuiRenderer::drawText(const std::string& text, int x, int y, const Color& c
     SDL_DestroyTexture(texture);
     SDL_FreeSurface(surface);
 }
+
+void GuiRenderer::drawSmallText(const std::string& text, int x, int y, const Color& color) {
+    TTF_Font* fontToUse = smallFont ? smallFont : font;
+    if (!fontToUse) return;
+    
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(fontToUse, text.c_str(), sdlColor);
+    if (!surface) {
+        return;
+    }
+    
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!texture) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+    
+    SDL_Rect rect = {x, y, surface->w, surface->h};
+    SDL_RenderCopy(renderer, texture, nullptr, &rect);
+    
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+}
+
 
 void GuiRenderer::drawRect(int x, int y, int w, int h, const Color& color, bool filled) {
     SDL_Rect rect = {x, y, w, h};
@@ -265,11 +298,19 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
                 }
                 
                 drawLine(x1, y1, x2, y2, edgeColor, 3);
+                
+                // Draw edge ID at the midpoint with small text
+                int midX = (x1 + x2) / 2;
+                int midY = (y1 + y2) / 2;
+                
+                // Draw background for edge ID
+                drawRect(midX - 15, midY - 8, 30, 16, Color(30, 30, 40, 220), true);
+                drawSmallText(edge.id, midX - 12, midY - 6, Color(255, 255, 150));
             }
         }
     }
     
-    // Vẽ nodes - simpler without labels to reduce clutter
+    // Vẽ nodes with IDs displayed
     for (const auto& nodeId : nodeIds) {
         auto node = map.getNodeById(nodeId);
         if (node) {
@@ -278,6 +319,9 @@ void GuiRenderer::drawMap(RoadMap& map, int offsetX, int offsetY, double scale) 
             
             drawCircle(x, y, 5, Color(70, 130, 180), true);
             drawCircle(x, y, 5, Color(255, 255, 255), false);
+            
+            // Draw node ID next to the node
+            drawSmallText(nodeId, x + 8, y - 6, Color(200, 220, 255));
         }
     }
 }

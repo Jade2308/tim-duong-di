@@ -427,26 +427,26 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         
         // Thông tin cơ bản
         gui.drawText("Tuyen duong: " + result.congestedEdge.id, 70, y, Color(255, 255, 100));
-        y += 25;
+        y += 30;
         gui.drawText("Chieu:  " + result.congestedEdge.src + " -> " + result.congestedEdge.dst, 
                     70, y, Color(255, 255, 255));
-        y += 25;
+        y += 30;
         gui.drawText("Luu luong: " + to_string((int)result.congestedEdge.flow) + " xe/gio", 
                     70, y, Color(255, 255, 255));
-        y += 25;
+        y += 30;
         gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
                     70, y, Color(255, 255, 255));
-        y += 25;
+        y += 30;
         gui.drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
                     70, y, Color(100, 255, 100));
-        y += 40;
+        y += 45;
         
         if (result.hasProposal) {
             // Có phương án
             auto& proposal = result.bestProposal;
             
             gui.drawText("GIAI PHAP:", 70, y, Color(100, 255, 255));
-            y += 30;
+            y += 35;
             
             // Loại phương án
             string typeStr;
@@ -458,52 +458,52 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
                 typeStr = "Xay tuyen duong moi";
             }
             gui.drawText("Loai: " + typeStr, 70, y, Color(255, 255, 255));
-            y += 25;
+            y += 30;
             
             gui.drawText("Chi phi: " + to_string((int)proposal.estimatedCost) + " ty VND", 
                         70, y, Color(255, 255, 255));
-            y += 25;
+            y += 30;
             
             gui.drawText("Giam tai: " + to_string((int)proposal.trafficReduction) + " xe/gio", 
                         70, y, Color(100, 255, 100));
-            y += 25;
+            y += 30;
             
             gui.drawText("Tiet kiem thoi gian: " + to_string((int)proposal.travelTimeSaved) + " phut", 
                         70, y, Color(100, 255, 100));
-            y += 30;
+            y += 35;
             
             // Lý do - chia thành nhiều dòng
             gui.drawText("LY DO:", 70, y, Color(255, 255, 100));
-            y += 25;
+            y += 30;
             
             string reasoning = proposal.reasoning;
             int maxChars = 100;
             for (size_t i = 0; i < reasoning.length(); i += maxChars) {
                 string line = reasoning.substr(i, maxChars);
                 gui.drawText(line, 70, y, Color(200, 200, 200));
-                y += 20;
+                y += 25;
             }
             
         } else {
             // Không có phương án trong ngân sách
             gui.drawText("KHONG CO GIAI PHAP KHA THI", 70, y, Color(255, 100, 100));
-            y += 30;
+            y += 35;
             
             gui.drawText("Ngan sach toi thieu: " + to_string((int)result.minBudgetNeeded) + " ty VND", 
                         70, y, Color(255, 255, 100));
-            y += 25;
+            y += 30;
             
             gui.drawText("Thieu hut: " + to_string((int)(result.minBudgetNeeded - budget)) + " ty VND", 
                         70, y, Color(255, 100, 100));
-            y += 40;
+            y += 45;
             
             // Giải pháp thay thế
             gui.drawText("GIAI PHAP THAY THE (khong can ngan sach):", 70, y, Color(100, 255, 255));
-            y += 25;
+            y += 30;
             
             for (const auto& sol : result.trafficSignalSolutions) {
                 gui.drawText(sol, 70, y, Color(200, 200, 200));
-                y += 20;
+                y += 25;
             }
         }
         

@@ -67,6 +67,7 @@ public:
     // Helper functions
     void drawTitle(const std::string& title);
     void drawPanel(int x, int y, int w, int h, const std::string& title);
+    void drawSmallText(const std::string& text, int x, int y, const Color& color);
     
     int getWidth() const { return windowWidth; }
     int getHeight() const { return windowHeight; }
@@ -79,6 +80,7 @@ private:
     SDL_Renderer* renderer;
     TTF_Font* font;
     TTF_Font* titleFont;
+    TTF_Font* smallFont;
     
     int windowWidth;
     int windowHeight;
