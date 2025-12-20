@@ -280,7 +280,7 @@ void handleAlternativeRoute(GuiRenderer& gui, RoadMap& map) {
         string pathStr;
         for (size_t i = 0; i < result.path.size(); i++) {
             pathStr += result.path[i];
-            if (i < result. path.size() - 1) pathStr += " -> ";
+            if (i < result.path.size() - 1) pathStr += " -> ";
         }
         
         // Split long path into multiple lines
@@ -373,7 +373,6 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         gui.present();
         SDL_Delay(16);
     }
-    }
     
     if (selectedIndex < 0) return;
     
@@ -394,7 +393,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
     }
     
     // Phân tích
-    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex]. edgeId, budget);
+    auto result = opt.analyzeCongestedRoad(congestedRoads[selectedIndex].edgeId, budget);
     
     // Hiển thị kết quả
     bool done = false;
@@ -408,7 +407,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             }
             if (event.type == SDL_KEYDOWN) {
                 if (event.key.keysym.sym == SDLK_ESCAPE || 
-                    event.key. keysym.sym == SDLK_RETURN) {
+                    event.key.keysym.sym == SDLK_RETURN) {
                     done = true;
                 }
                 if (event.key.keysym.sym == SDLK_UP) scrollOffset -= 20;
@@ -438,7 +437,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
         gui.drawText("Suc chua: " + to_string((int)result.congestedEdge.capacity) + " xe/gio", 
                     70, y, Color(255, 255, 255));
         y += 25;
-        gui. drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
+        gui.drawText("Ngan sach: " + to_string((int)budget) + " ty VND", 
                     70, y, Color(100, 255, 100));
         y += 40;
         
@@ -481,7 +480,7 @@ void handleTrafficOptimization(GuiRenderer& gui, RoadMap& map) {
             int maxChars = 100;
             for (size_t i = 0; i < reasoning.length(); i += maxChars) {
                 string line = reasoning.substr(i, maxChars);
-                gui. drawText(line, 70, y, Color(200, 200, 200));
+                gui.drawText(line, 70, y, Color(200, 200, 200));
                 y += 20;
             }
             
